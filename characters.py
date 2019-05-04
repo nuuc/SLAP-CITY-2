@@ -27,16 +27,20 @@ class Character:
     0: Max ground speed
     """
     center: List[int]
-    hurtboxes: List[pygame.rect]
-    hitboxes: List[pygame.rect]
+    hurtboxes: List[pygame.Rect]
+    hitboxes: List[pygame.Rect]
     _attributes: Tuple[int]
-    action_state: List[str, int]
+    action_state: List
     _direction: bool
 
-    def __init__(self, center: List[int], direction: bool, action_state: List[str, int]) -> None:
+    def __init__(self, center: List[int], direction: bool, action_state: List) -> None:
         self.center = center
         self._direction = direction
         self.action_state =  action_state
+        # self._attributes = []
+        # self._direction = False
+        # self.hitboxes = []
+        # self.hurtboxes = []
 
     def update(self) -> None:
         raise NotImplementedError
@@ -53,17 +57,24 @@ class Character:
 
 class CharOne(Character):
 
-    def __init__(self, center: List[int], direction: bool, action_state: List[str, int]) -> None:
+    def __init__(self, center: List[int], direction: bool, action_state: List) -> None:
         super(CharOne, self).__init__(center, direction, action_state)
+        width = 30
+        self.hitboxes = [pygame.Rect(self.center[0] - width / 2,
+                                     self.center[1] - width, width, width),
+                         pygame.Rect(self.center[0] - width / 2, self.center[1],
+                                     width, 2 * width)]
+        self.hurtboxes = []
+        self._attributes = [5]
 
     def update(self) -> None:
-        #TODO: If a character is in an unactionable state, continue that unactionable state until actionable
-        if self.action_state != "grounded":  # This is going to have to change later too, to be generalized.
+        # TODO: If a character is in an unactionable state, continue that unactionable state until actionable
+        if self.action_state[0] != "grounded":  # This is going to have to change later too, to be generalized.
             getattr(self, self.action_state[0])() # This is calling the function "self.action_state[0]". For example,
             # if self.action_state is "ftilt", this will call on the function ftilt().
 
     def ground_actionable(self) -> bool:
-        if self._action_state[0] == "grounded":
+        if self.action_state[0] == 'grounded':
             return True
         return False
 
@@ -76,17 +87,19 @@ class CharOne(Character):
                 self._direction = False
 
     def ftilt(self):
-        if self.ground_actionable() or self.action_state[0] == "ftilt":
-            self.action_state[0] = "ftilt"
+        if self.ground_actionable() or self.action_state[0] == 'ftilt':
+            self.action_state[0] = 'ftilt'
             self.action_state[1] += 1
             if self.action_state[1] > 7:
                 if self._direction:
                     self.hurtboxes = [pygame.Rect(self.center[0] + 30 / 2, self.center[1], 50, 30)]
                     # I hard coded this in, but this is bound to change, along with the one below.
                 else:
-                    self.hurtboxes = [pygame.Rect(self.center[0] - 30 / 2 - 50, self.center[1], 50, 30)]
+                    self.hurtboxes = [pygame.Rect(self.center[0] - 30 / 2 - 50, self.center[1], 50, 30 -
+                                                  int(self.action_state[1] * 3))]
+                    # Again, this needs to change.
             if self.action_state[1] > 15:
                 self.hurtboxes = []
             if self.action_state[1] > 20:
-                self.action_state[0] = "grounded"
+                self.action_state[0] = 'grounded'
                 self.action_state[1] = 0
