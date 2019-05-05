@@ -60,11 +60,11 @@ class CharOne(Character):
     def __init__(self, center: List[int], direction: bool, action_state: List) -> None:
         super(CharOne, self).__init__(center, direction, action_state)
         width = 30
-        self.hitboxes = [pygame.Rect(self.center[0] - width / 2,
+        self.hurtboxes = [pygame.Rect(self.center[0] - width / 2,
                                      self.center[1] - width, width, width),
                          pygame.Rect(self.center[0] - width / 2, self.center[1],
                                      width, 2 * width)]
-        self.hurtboxes = []
+        self.hitboxes = []
         self._attributes = [5]
 
     def update(self) -> None:
@@ -92,14 +92,14 @@ class CharOne(Character):
             self.action_state[1] += 1
             if self.action_state[1] > 7:
                 if self._direction:
-                    self.hurtboxes = [pygame.Rect(self.center[0] + 30 / 2, self.center[1], 50, 30)]
+                    self.hitboxes = [pygame.Rect(self.center[0] + 30 / 2, self.center[1], 50, 30)]
                     # I hard coded this in, but this is bound to change, along with the one below.
                 else:
-                    self.hurtboxes = [pygame.Rect(self.center[0] - 30 / 2 - 50, self.center[1], 50, 30 -
+                    self.hitboxes = [pygame.Rect(self.center[0] - 30 / 2 - 50, self.center[1], 50, 30 -
                                                   int(self.action_state[1] * 3))]
                     # Again, this needs to change.
             if self.action_state[1] > 15:
-                self.hurtboxes = []
+                self.hitboxes = []
             if self.action_state[1] > 20:
                 self.action_state[0] = 'grounded'
                 self.action_state[1] = 0
