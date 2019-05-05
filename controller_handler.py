@@ -8,8 +8,10 @@ joystick_one = pygame.joystick.Joystick(4) # Hard coding this for now, will need
 #   pygame.joystick.Joystick(c).init()
 joystick_one.init()
 
+
 def handle(char: characters.Character) -> None:
     x_tilt = joystick_one.get_axis(0)
+    char.walk(x_tilt)
     if abs(x_tilt) > 0.3 and joystick_one.get_button(1):
         if char.action_state[0] != 'ftilt':
             char.ftilt()

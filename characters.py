@@ -69,7 +69,7 @@ class CharOne(Character):
 
     def update(self) -> None:
         # TODO: If a character is in an unactionable state, continue that unactionable state until actionable
-        if self.action_state[0] != "grounded":  # This is going to have to change later too, to be generalized.
+        if self.action_state[0] != 'grounded':  # This is going to have to change later too, to be generalized.
             getattr(self, self.action_state[0])() # This is calling the function "self.action_state[0]". For example,
             # if self.action_state is "ftilt", this will call on the function ftilt().
 
@@ -80,11 +80,18 @@ class CharOne(Character):
 
     def walk(self, tilt) -> None:
         if self.ground_actionable():
-            self.center[0] += tilt * self.attributes[0]
+            self.center[0] += tilt * self._attributes[0]
             if tilt > 0:
                 self._direction = True
             else:
                 self._direction = False
+            width = 30
+            # TODO: Make a separate function update hurtboxes in relation to the characters center
+            # This is because hurtboxes won't always be simple rectangles, so we may have to make this work dynamically
+            self.hurtboxes = [pygame.Rect(self.center[0] - width / 2,
+                                          self.center[1] - width, width, width),
+                              pygame.Rect(self.center[0] - width / 2, self.center[1],
+                                          width, 2 * width)]
 
     def ftilt(self):
         if self.ground_actionable() or self.action_state[0] == 'ftilt':
@@ -92,14 +99,36 @@ class CharOne(Character):
             self.action_state[1] += 1
             if self.action_state[1] > 7:
                 if self._direction:
-                    self.hitboxes = [pygame.Rect(self.center[0] + 30 / 2, self.center[1], 50, 30)]
+                    # self.hitboxes = [pygame.Rect(self.center[0] + 30 / 2, self.center[1], 50, 30)]
                     # I hard coded this in, but this is bound to change, along with the one below.
+                    # UPDATE HITBOXES
+                    pass
                 else:
-                    self.hitboxes = [pygame.Rect(self.center[0] - 30 / 2 - 50, self.center[1], 50, 30 -
-                                                  int(self.action_state[1] * 3))]
+                    # self.hitboxes = [pygame.Rect(self.center[0] - 30 / 2 - 50, self.center[1], 50, 30 -
+                    #                               int(self.action_state[1] * 3))]
                     # Again, this needs to change.
+                    # UPDATE HITBOXES
+                    pass
             if self.action_state[1] > 15:
                 self.hitboxes = []
             if self.action_state[1] > 20:
                 self.action_state[0] = 'grounded'
                 self.action_state[1] = 0
+        # if self.ground_actionable():
+        #     self.action_state[0] = 'ftilt'
+        #     self.action_state[1] = 1
+        # elif self.action_state[0] == 'ftilt'
+        #     self.action_state[1] += 1
+        #     if self.action_state[1] > 7:
+        #         if self._direction:
+        #             # UPDATE HITBOXES
+        #         else:
+        #             # UPDATE HITBOXES
+        #     if self.action_state[1] > 15:
+        #         self.hitboxes = []
+        #     if self.action_state[1] > 20:
+        #         self.action_state[0] = 'grounded'
+        #         self.action_state[1] = 0
+        # This is an alternate version of the code earlier, where the action state is set only at the startup, not
+        # every frame. Currently, there should be no difference, except a tiny bit in runtime, but it may be useful
+        # to use this later to account for something.

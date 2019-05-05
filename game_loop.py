@@ -18,7 +18,7 @@ def loop(screen: pygame.Surface) -> None:
     for hitbox in tony.hitboxes:
         pygame.draw.rect(screen, (0, 255, 255), hitbox)
     for hurtbox in tony.hurtboxes:
-        pygame.draw.rect(screen, (0, 0, 255), hurtbox)
+        pygame.draw.rect(screen, (0, 0, 0), hurtbox)
     pygame.display.update()
 
 
