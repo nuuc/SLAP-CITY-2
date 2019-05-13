@@ -25,5 +25,7 @@ def handle(char: characters.Character, joystick_id: int) -> None:
     if char.action_state[0] == 'grounded':
         if abs(x_tilt) > 0.25 and joystick.get_button(1):
             char.ftilt()
-        if joystick.get_button(3):
+        elif joystick.get_button(3):
             char.fullhop()
+        elif joystick.get_button(0):
+            char.shorthop()
