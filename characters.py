@@ -86,7 +86,7 @@ class CharOne(Character):
         self.hurtboxes = [pygame.Rect(self.center[0] - width / 2,
                                      self.center[1] - width, width, width * 3)]
         self.hitboxes = []
-        self.attributes = {'max_gr_speed': 5, 'vair_acc': 1.5, 'max_vair_speed': 3, 'hair_acc': 3, 'max_hair_speed':
+        self.attributes = {'max_gr_speed': 5, 'vair_acc': 1.5, 'max_vair_speed': 3, 'hair_acc': 1, 'max_hair_speed':
                             20, 'width': width, 'height': width * 2, 'fullhop_velocity': 20, 'shorthop_velocity': 15}
         self.ground_speed = 0
         self.air_speed = [0, 0]
@@ -145,13 +145,17 @@ class CharOne(Character):
                 self.direction = True
             else:
                 self.direction = False
-            return
-        if self.action_state[0] == 'airborne':
-            if tilt != 0:
-                self.air_speed[0] += tilt * self.attributes['hair_acc']
-                if abs(self.air_speed[0]) >= self.attributes['max_hair_speed']:
-                    self.air_speed[0] = self.attributes['max_hair_speed'] * tilt / abs(tilt)
-            return
+        elif self.action_state[0] == 'airborne':
+            set_spd = tilt * self.attributes['max_hair_speed']
+            if self.air_speed[0] != set_spd:
+                if self.air_speed[0] < set_spd:
+                    self.update_air_speed(self.air_speed[0] + self.attributes['hair_acc'], self.air_speed[1])
+                    if self.air_speed[0] > set_spd:
+                        self.update_air_speed(set_spd, self.air_speed[1])
+                else:
+                    self.update_air_speed(self.air_speed[0] - self.attributes['hair_acc'], self.air_speed[1])
+                    if self.air_speed[0] < set_spd:
+                        self.update_air_speed(set_spd, self.air_speed[1])
 
     def ftilt(self) -> None:
         if self.ground_actionable() or self.action_state[2] == 'ftilt':
