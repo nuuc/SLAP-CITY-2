@@ -18,6 +18,7 @@ class Character:
     ground_speed: A character's ground speed
     hurtboxes: A list of pygame rectangles of a character's hurtboxes.
     hitboxes: A list of pygame rectangles of a character's active hitboxes.
+    jumped: True if a character has jumped in the air, False if they haven't.
 
     ATTRIBUTE INDEX MAPPING
     'max_gr_speed: max ground speed
@@ -38,6 +39,7 @@ class Character:
     direction: bool
     hitboxes: List[pygame.Rect]
     hurtboxes: List[pygame.Rect]
+    jumped: bool
 
     def __init__(self, center: List[int], direction: bool, action_state: List) -> None:
         self.center = center
@@ -86,10 +88,11 @@ class CharOne(Character):
         self.hurtboxes = [pygame.Rect(self.center[0] - width / 2,
                                      self.center[1] - width, width, width * 3)]
         self.hitboxes = []
-        self.attributes = {'max_gr_speed': 5, 'vair_acc': 1.5, 'max_vair_speed': 3, 'hair_acc': 1, 'max_hair_speed':
-                            20, 'width': width, 'height': width * 2, 'fullhop_velocity': 20, 'shorthop_velocity': 15}
+        self.attributes = {'max_gr_speed': 5, 'vair_acc': 1.5, 'max_vair_speed': 10, 'hair_acc': 0.5, 'max_hair_speed':
+                            8, 'width': width, 'height': width * 2, 'fullhop_velocity': 20, 'shorthop_velocity': 15}
         self.ground_speed = 0
         self.air_speed = [0, 0]
+        self.jumped = False
 
     def update(self) -> None:
         # TODO: Generalize update to handle all action states (this might be done at the very end, when we have all
@@ -107,6 +110,7 @@ class CharOne(Character):
         if self.action_state[0] == 'airborne':
             self.update_air_speed(self.air_speed[0], self.air_speed[1] - self.attributes['vair_acc'])
             self.update_center(self.center[0] + self.air_speed[0], self.center[1] - self.air_speed[1])
+
             if self.action_state[2] != 'airborne':
                 getattr(self, self.action_state[2])()
 
@@ -121,7 +125,7 @@ class CharOne(Character):
             self.hurtboxes = [pygame.Rect(self.center[0] - width / 2,
                                           self.center[1] - width, width, width * 3)]
 
-    def update_air_speed(self, x: int, y: int) -> None:
+    def update_air_speed(self, x: float, y: float) -> None:
         self.air_speed = [x, y]
         if self.air_speed[0] > self.attributes['max_hair_speed']:
             self.air_speed[0] = self.attributes['max_hair_speed'] * numpy.sign(x)
@@ -191,12 +195,15 @@ class CharOne(Character):
         # to use this later to account for something.
 
     def fullhop(self) -> None:
+        if not self.jumped and self.action_state[0] == 'airborne':
+            self.jumped = True
+            self.update_air_speed(self.air_speed[0], self.attributes['fullhop_velocity'])
         if self.ground_actionable() or self.action_state[2] == 'fullhop_jumpsquat':
             self.action_state[2] = 'fullhop_jumpsquat'
             self.action_state[3] += 1
             if self.action_state[3] > JUMPSQUAT_FRAME:
                 self.action_state = ['airborne', 0, 'airborne', 0]
-                self.air_speed = [self.ground_speed * 0.5, self.attributes['fullhop_velocity']]
+                self.update_air_speed(self.ground_speed * 0.5, self.attributes['fullhop_velocity'])
 
     def shorthop(self) -> None:
         if self.ground_actionable() or self.action_state[2] == 'shorthop_jumpsquat':
@@ -204,7 +211,7 @@ class CharOne(Character):
             self.action_state[3] += 1
             if self.action_state[3] > JUMPSQUAT_FRAME:
                 self.action_state = ['airborne', 0, 'airborne', 0]
-                self.air_speed = [self.ground_speed * 0.5, self.attributes['shorthop_velocity']]
+                self.update_air_speed(self.ground_speed * 0.5, self.attributes['shorthop_velocity'])
 
     def fair(self) -> None:
         if self.air_actionable() or self.action_state[2] == 'fair':

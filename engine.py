@@ -13,7 +13,8 @@ def run(stage: stages.Stage, character_list: List[characters.Character]) -> None
                     character.update_center(character.center[0], floor[0][1] - height)
                     character.action_state = ['grounded', 0, 'grounded', 0]
                     character.hitboxes = []
-                    character.air_speed = [0, 0]
+                    character.jumped = False
+                    character.update_air_speed(0, 0)
                 elif character.action_state[0] == 'airdodge':
                     pass
 
