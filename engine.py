@@ -7,16 +7,20 @@ def run(stage: stages.Stage, character_list: List[characters.Character]) -> None
         width = character.attributes['width']
         height = character.attributes['height']
         for floor in stage.floor:
-            if height + character.center[1] - character.air_speed[1] > floor[0][1]\
-                    and character.center[0] + width > floor[0][0] and character.center[0] - width < floor[1][0]:
-                if character.action_state[0] == 'airborne':
-                    character.update_center(character.center[0], floor[0][1] - height)
-                    character.action_state = ['grounded', 0, 'grounded', 0]
-                    character.hitboxes = []
-                    character.jumped = False
-                    character.update_air_speed(0, 0)
-                elif character.action_state[0] == 'airdodge':
-                    pass
+            if character.center[0] + width / 2 > floor[0][0] and character.center[0] - width / 2 < floor[1][0]:
+                if height + character.center[1] - character.air_speed[1] > floor[0][1]:
+                    if character.action_state[0] == 'airborne':
+                        character.update_center(character.center[0], floor[0][1] - height)
+                        character.action_state = ['grounded', 0, 'grounded', 0]
+                        character.hitboxes = []
+                        character.jumped = False
+                        character.update_air_speed(0, 0)
+                    elif character.action_state[0] == 'airdodge':
+                        pass
+            else:
+                if character.action_state[0] == 'grounded':
+                    character.air_speed[0] = character.ground_speed
+                    character.action_state = ['airborne', 0, 'airborne', 0]
 
 
 def draw(obj: List[pygame.Rect], screen: pygame.Surface) -> None:

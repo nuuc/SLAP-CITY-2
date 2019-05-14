@@ -79,6 +79,12 @@ class Character:
     def bair(self) -> None:
         raise NotImplementedError
 
+    def upair(self) -> None:
+        raise NotImplementedError
+
+    def dair(self) -> None:
+        raise NotImplementedError
+
 
 class CharOne(Character):
 
@@ -88,8 +94,8 @@ class CharOne(Character):
         self.hurtboxes = [pygame.Rect(self.center[0] - width / 2,
                                      self.center[1] - width, width, width * 3)]
         self.hitboxes = []
-        self.attributes = {'max_gr_speed': 5, 'vair_acc': 1.5, 'max_vair_speed': 10, 'hair_acc': 0.5, 'max_hair_speed':
-                            8, 'width': width, 'height': width * 2, 'fullhop_velocity': 20, 'shorthop_velocity': 15}
+        self.attributes = {'max_gr_speed': 12, 'vair_acc': 2.25, 'max_vair_speed': 12, 'hair_acc': 2, 'max_hair_speed':
+                            8, 'width': width, 'height': width * 2, 'fullhop_velocity': 25, 'shorthop_velocity': 20}
         self.ground_speed = 0
         self.air_speed = [0, 0]
         self.jumped = False
@@ -203,7 +209,7 @@ class CharOne(Character):
             self.action_state[3] += 1
             if self.action_state[3] > JUMPSQUAT_FRAME:
                 self.action_state = ['airborne', 0, 'airborne', 0]
-                self.update_air_speed(self.ground_speed * 0.5, self.attributes['fullhop_velocity'])
+                self.update_air_speed(self.ground_speed * 1, self.attributes['fullhop_velocity'])
 
     def shorthop(self) -> None:
         if self.ground_actionable() or self.action_state[2] == 'shorthop_jumpsquat':
@@ -211,7 +217,7 @@ class CharOne(Character):
             self.action_state[3] += 1
             if self.action_state[3] > JUMPSQUAT_FRAME:
                 self.action_state = ['airborne', 0, 'airborne', 0]
-                self.update_air_speed(self.ground_speed * 0.5, self.attributes['shorthop_velocity'])
+                self.update_air_speed(self.ground_speed * 1, self.attributes['shorthop_velocity'])
 
     def fair(self) -> None:
         if self.air_actionable() or self.action_state[2] == 'fair':
@@ -231,6 +237,36 @@ class CharOne(Character):
     def bair(self) -> None:
         if self.air_actionable() or self.action_state[2] == 'bair':
             self.action_state[2] = 'bair'
+            self.action_state[3] += 1
+            if self.action_state[3] > 8:
+                if self.direction:
+                    self.hitboxes = [pygame.Rect(self.center[0], self.center[1], 10, 10)]
+                else:
+                    self.hitboxes = [pygame.Rect(self.center[0], self.center[1], 10, 10)]
+            if self.action_state[3] > 16:
+                self.hitboxes = []
+            if self.action_state[3] > 20:
+                self.action_state[2] = 'airborne'
+                self.action_state[3] = 0
+
+    def upair(self) -> None:
+        if self.air_actionable() or self.action_state[2] == 'upair':
+            self.action_state[2] = 'upair'
+            self.action_state[3] += 1
+            if self.action_state[3] > 8:
+                if self.direction:
+                    self.hitboxes = [pygame.Rect(self.center[0], self.center[1], 10, 10)]
+                else:
+                    self.hitboxes = [pygame.Rect(self.center[0], self.center[1], 10, 10)]
+            if self.action_state[3] > 16:
+                self.hitboxes = []
+            if self.action_state[3] > 20:
+                self.action_state[2] = 'airborne'
+                self.action_state[3] = 0
+
+    def dair(self) -> None:
+        if self.air_actionable() or self.action_state[2] == 'upair':
+            self.action_state[2] = 'upair'
             self.action_state[3] += 1
             if self.action_state[3] > 8:
                 if self.direction:
