@@ -1,4 +1,4 @@
-import pygame, characters
+import pygame, characters, math
 from typing import *
 
 pygame.init()
@@ -39,25 +39,40 @@ for i in range(pygame.joystick.get_count()):
     controller_input.append(Input(i))
 
 
+def controller_mapping(x: int, y: int) -> List:
+    if math.sqrt(x ** 2 + y ** 2) < 0.15:
+        return [0, 0]
+    else:
+        if x > abs(y):
+            return [1, 0]
+        elif x < -1 * abs(y):
+            return [-1, 0]
+
+
+
 def handle(char: characters.Character, joystick_id: int) -> None:
     joystick = pygame.joystick.Joystick(joystick_id)
     joystick_input = controller_input[joystick_id]
     joystick_input.update()
     x_tilt = joystick.get_axis(0)
     y_tilt = joystick.get_axis(1)
-    char.move(x_tilt)
+    mapping = controller_mapping(x_tilt, y_tilt)
+    if mapping != [0, 0]:
+        char.move(x_tilt)
+    else:
+        char.move(0)
     if char.action_state[2] == 'airborne':
         if char.direction and joystick_input.get_change(1):
-            if abs(y_tilt) < 0.25 < x_tilt:
+            if mapping == [1, 0]:
                 char.fair()
-            if x_tilt < -0.25 < -1 * abs(y_tilt):
+            elif mapping == [-1, 0]:
                 char.bair()
-        if not char.direction and joystick_input.get_change(1):
-            if abs(y_tilt) < 0.25 < x_tilt:
+        elif not char.direction and joystick_input.get_change(1):
+            if mapping == [1, 0]:
                 char.bair()
-            if x_tilt < -0.25 < -1 * abs(y_tilt):
+            elif mapping == [-1, 0]:
                 char.fair()
-        if joystick_input.get_change(3):
+        elif joystick_input.get_change(3):
             char.fullhop()
     if char.action_state[0] == 'grounded':
         if abs(x_tilt) > 0.25 and joystick_input.get_change(1):
