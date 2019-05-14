@@ -6,6 +6,15 @@ pygame.joystick.init()
 
 
 def controller_mapping(x: int, y: int, dead_zone: float) -> List:
+    """
+    Maps each four area of a control stick(can be cstick too) to a value in the list [x, y]. For example, if its
+    considered to be in the up area, it would return [0, 1], while it would return [0, -1] if it were considered to
+    be in the down area. It will return [0, 0] if its considered to be in the dead zone.
+    :param x: The x axis of the tilt from the control stick
+    :param y: The y axis of the tilt from the control stick
+    :param dead_zone: Dead zone
+    :return: A list of [x, y]. x and y are either -1, 0, or 1, corresponding to the region it's occupying.
+    """
     if math.sqrt(x ** 2 + y ** 2) < dead_zone:
         return [0, 0]
     else:
@@ -24,6 +33,11 @@ class Input:
     button_list: List
     axis_list: List
     joystick_id: int
+    """
+    Don't worry too much about the implementation of this. Basically, button_list stores the current and previous
+    frame's button data, and the axis_list does the same, respectively. The class methods should be pretty
+    self-explanatory and they should be simple enough to understand that you'll get it almost immediately.
+    """
 
     def __init__(self, joystick_id: int) -> None:
         inputs = [[], []]
