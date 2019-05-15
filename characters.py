@@ -94,7 +94,7 @@ class CharOne(Character):
         self.hurtboxes = [pygame.Rect(self.center[0] - width / 2,
                                      self.center[1] - width, width, width * 3)]
         self.hitboxes = []
-        self.attributes = {'max_gr_speed': 12, 'vair_acc': 2.25, 'max_vair_speed': 12, 'hair_acc': 2, 'max_hair_speed':
+        self.attributes = {'max_gr_speed': 12, 'vair_acc': 1, 'max_vair_speed': 2, 'hair_acc': 2, 'max_hair_speed':
                             8, 'width': width, 'height': width * 2, 'fullhop_velocity': 25, 'shorthop_velocity': 20}
         self.ground_speed = 0
         self.air_speed = [0, 0]

@@ -16,11 +16,10 @@ def loop(screen: pygame.Surface) -> None:
     # For 2), update each character using their update function
     # TODO: 3) Draw screen
     screen.fill((255, 255, 255))
-    engine.draw(tony.hurtboxes, screen)
-    engine.draw(tony.hitboxes, screen)
-    for floor in stages.FD().floor:
-        pygame.draw.line(screen, (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)),
-                         floor[0], floor[1], 1)
+    engine.draw_boxes(tony.hurtboxes, screen, (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
+    engine.draw_boxes(tony.hitboxes, screen, (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
+    engine.draw_lines(stage.floor, screen, (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
+    engine.draw_lines(stage.walls, screen, (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
     pygame.display.update()
 
 
