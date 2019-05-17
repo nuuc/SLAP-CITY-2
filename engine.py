@@ -7,6 +7,7 @@ def run(stage: stages.Stage, character_list: List[characters.Character]) -> None
         pcenter = character.center[:]
         character.update()
         center = character.center
+        ground_speed = character.ground_speed
         size = [character.attributes['width'], character.attributes['height']]
         for floor in stage.floor:
             if pcenter[1] + size[1] <= floor[2]:
