@@ -8,4 +8,4 @@ pygame.display.set_caption('Slap City 2')
 
 while not game_loop.check_exit():
     game_loop.loop(screen)
-    time.sleep(0.01666)
+    time.sleep(0.016666)
