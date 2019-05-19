@@ -1,41 +1,9 @@
-import pygame, stages, characters, random
+import pygame, stages, characters, controller_handler
 from typing import *
 
 
-def run(stage: stages.Stage, character_list: List[characters.Character]) -> None:
-    for character in character_list:
-        pcenter = character.center[:]
-        character.update()
-        center = character.center
-        ground_speed = character.ground_speed
-        size = [character.attributes['width'], character.attributes['height']]
-        for floor in stage.floor:
-            if pcenter[1] + size[1] <= floor[2]:
-                if in_bound(center[0], size[0], [floor[0], floor[1]]):
-                    if center[1] + size[1] >= floor[2] > pcenter[1] + size[1]:
-                        character.update_center(center[0], floor[2] - size[1])
-                        character.action_state = ['grounded', 0, 'grounded', 0]
-                        character.hitboxes = []
-                else:
-                    if in_bound(pcenter[0], size[0], [floor[0], floor[1]]) and center[1] + size[1] == floor[2]:
-                        character.update_air_speed(ground_speed, 0)
-                        character.action_state = ['airborne', 0, 'airborne', 0]
-        for wall in stage.walls:
-            if wall[0] < center[1] + size[1] and center[1] - size[1] < wall[1]:
-                if pcenter[0] + size[0] / 2 <= wall[2] <= center[0] + size[0] / 2:
-                    character.update_center(wall[2] - size[0] / 2, center[1])
-                    character.update_air_speed(0, character.air_speed[1])
-                    character.ground_speed = 0
-                elif center[0] - size[0] / 2 <= wall[2] <= pcenter[0] - size[0] / 2:
-                    character.update_center(wall[2] + size[0] / 2, center[1])
-                    character.update_air_speed(0, character.air_speed[1])
-                    character.ground_speed = 0
-
-
-def in_bound(pos: float, size: float, bounds: List) -> bool:
-    if bounds[0] < pos + size / 2 and pos - size / 2 < bounds[1]:
-        return True
-    return False
+def run(stage: stages.Stage, char_control_map: Dict) -> None:
+    stage.handle_stage(char_control_map)
 
 
 def draw_boxes(obj: List[pygame.Rect], screen: pygame.Surface, color: Tuple[int, int, int]) -> None:
@@ -52,3 +20,10 @@ def draw_lines(obj: List, screen: pygame.Surface, color: Tuple[int, int, int], o
         for thing in obj:
             coord = [(thing[2], thing[0]), (thing[2], thing[1])]
             pygame.draw.line(screen, color, coord[0], coord[1], 2)
+
+
+def draw_ecb(screen: pygame.Surface, character: characters.Character) -> None:
+    x = character.center[0]
+    y = character.center[1]
+    pygame.draw.line(screen, (128, 128, 128), (x, character.ecb[2]), (x, character.ecb[3]))
+    pygame.draw.line(screen, (128, 128, 128), (character.ecb[0], y), (character.ecb[1], y))

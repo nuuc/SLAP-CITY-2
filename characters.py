@@ -16,6 +16,7 @@ class Character:
     hitboxes.
     direction: The direction a character is facing. Left will be False and right will be True.
     ground_speed: A character's ground speed
+    ecb: A list of a character's edges for interacting with the stage. Its indexes are left, right, top and bottom.
     hurtboxes: A list of pygame rectangles of a character's hurtboxes.
     hitboxes: A list of pygame rectangles of a character's active hitboxes.
     jumped: True if a character has jumped in the air, False if they haven't.
@@ -37,6 +38,7 @@ class Character:
     attributes: Dict
     center: List[float]
     direction: bool
+    ecb: List
     hitboxes: List[pygame.Rect]
     hurtboxes: List[pygame.Rect]
     jumped: bool
@@ -45,14 +47,11 @@ class Character:
         self.center = center
         self.direction = direction
         self.action_state = action_state
-        # self._attributes = []
-        # self.hitboxes = []
-        # self.hurtboxes = []
 
     def get_attr(self) -> Dict:
         return {'action_state': self.action_state, 'air_speed': self.air_speed, 'attributes': self.attributes,
                 'center': self.center, 'direction': self.direction, 'hitboxes': self.hitboxes,
-                'hurtboxes': self.hurtboxes, 'jumped': self.jumped}
+                'hurtboxes': self.hurtboxes, 'jumped': self.jumped, 'ecb': self.ecb}
 
     def update(self) -> None:
         raise NotImplementedError
@@ -64,7 +63,14 @@ class Character:
         raise NotImplementedError
 
     def ground_actionable(self) -> bool:
-        raise NotImplementedError
+        if self.action_state[2] == 'grounded':
+            return True
+        return False
+
+    def air_actionable(self) -> bool:
+        if self.action_state[2] == 'airborne':
+            return True
+        return False
 
     def move(self, tilt: float) -> None:
         raise NotImplementedError
@@ -99,15 +105,16 @@ class CharOne(Character):
         self.hurtboxes = [pygame.Rect(self.center[0] - width / 2,
                                      self.center[1] - width, width, width * 3)]
         self.hitboxes = []
-        self.attributes = {'max_gr_speed': 10, 'vair_acc': 2.25, 'max_vair_speed': 10, 'hair_acc': 2, 'max_hair_speed':
-                            8, 'width': width, 'height': width * 2, 'fullhop_velocity': 25, 'shorthop_velocity': 20}
+        self.attributes = {'max_gr_speed': 10, 'vair_acc': 3, 'max_vair_speed': 50, 'hair_acc': 2, 'max_hair_speed':
+                            8, 'width': width, 'height': width * 2, 'fullhop_velocity': 30, 'shorthop_velocity': 25}
         self.ground_speed = 0
         self.air_speed = [0, 0]
         self.jumped = False
+        self.ecb = [self.center[0] - width / 2, self.center[0] + width / 2,
+                    self.center[1] - width, self.center[1] + width * 3]
 
     def update(self) -> None:
-        # TODO: Generalize update to handle all action states (this might be done at the very end, when we have all
-        # action states figured out)
+        # TODO: Generalize update to handle all action states
         if self.action_state[0] == 'grounded':
             self.update_air_speed(0, 0)
             self.jumped = False
@@ -131,36 +138,32 @@ class CharOne(Character):
         self.center[0] = x
         self.center[1] = y
         width = 30
+        self.ecb = [self.center[0] - width / 2, self.center[0] + width / 2,
+                    self.center[1] - width, self.center[1] + width * 2]
         if self.direction:
             self.hurtboxes = [pygame.Rect(self.center[0] - width / 2,
-                                          self.center[1] - width, width, width * 3)]
+                                          self.center[1] - width, width, width * 3),
+                              pygame.Rect(self.center[0],
+                                          self.center[1] + 20, width, 15)]
         else:
             self.hurtboxes = [pygame.Rect(self.center[0] - width / 2,
-                                          self.center[1] - width, width, width * 3)]
+                                          self.center[1] - width, width, width * 3),
+                              pygame.Rect(self.center[0],
+                                          self.center[1] + 20, -width, 15)]
 
     def update_air_speed(self, x: float, y: float) -> None:
         self.air_speed = [x, y]
         if self.air_speed[0] > self.attributes['max_hair_speed']:
             self.air_speed[0] = self.attributes['max_hair_speed'] * numpy.sign(x)
-        if self.air_speed[1] < -1 * self.attributes['max_vair_speed']:
-            self.air_speed[1] = -1 * self.attributes['max_vair_speed']
-
-    def ground_actionable(self) -> bool:
-        if self.action_state[2] == 'grounded':
-            return True
-        return False
-
-    def air_actionable(self) -> bool:
-        if self.action_state[2] == 'airborne':
-            return True
-        return False
+        if self.air_speed[1] < -self.attributes['max_vair_speed']:
+            self.air_speed[1] = -self.attributes['max_vair_speed']
 
     def move(self, tilt) -> None:
         if self.ground_actionable():
             self.ground_speed = self.attributes['max_gr_speed'] * tilt
             if tilt > 0:
                 self.direction = True
-            else:
+            elif tilt < 0:
                 self.direction = False
         elif self.action_state[0] == 'airborne':
             set_spd = tilt * self.attributes['max_hair_speed']

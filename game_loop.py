@@ -1,25 +1,27 @@
 import pygame, controller_handler, characters, engine, stages, random
 
 tony = characters.CharOne([500, 200], False, ['airborne', 0, 'airborne', 0])
+ben = characters.CharOne([600, 200], False, ['airborne', 0, 'airborne', 0])
+char_mapping = {tony: 1, ben: 4}
 stage = stages.FD()
 
 
 def loop(screen: pygame.Surface) -> None:
-    # TODO: 1) Detect inputs
 
-    controller_handler.handle(tony, 4)
+    controller_handler.handle(tony, 1)
+    controller_handler.handle(ben, 4)
 
-    # TODO: 2) Update characters, run engine to check event data (possibly in reverse order)
+    engine.run(stage, char_mapping)
 
-    engine.run(stage, [tony])
-
-    # For 2), update each character using their update function
-    # TODO: 3) Draw screen
     screen.fill((255, 255, 255))
-    engine.draw_boxes(tony.hurtboxes, screen, (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
-    engine.draw_boxes(tony.hitboxes, screen, (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
-    engine.draw_lines(stage.floor, screen, (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)), True)
-    engine.draw_lines(stage.walls, screen, (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)), False)
+    engine.draw_boxes(tony.hurtboxes, screen, (0, 0, 0))
+    engine.draw_boxes(tony.hitboxes, screen, (255, 0, 0))
+    engine.draw_boxes(ben.hurtboxes, screen, (0, 0, 0))
+    engine.draw_boxes(ben.hitboxes, screen, (255, 0, 0))
+    engine.draw_lines(stage.floor, screen, (0, 255, 0), True)
+    engine.draw_lines(stage.walls, screen, (0, 0, 255), False)
+    engine.draw_ecb(screen, tony)
+    engine.draw_ecb(screen, ben)
     pygame.display.update()
 
 
