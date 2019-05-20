@@ -77,8 +77,10 @@ class Character:
             if self.action_state[2] == 'grounded':
                 self.update_center(self.center[0] + self.ground_speed, self.center[1])
             elif self.action_state[2] == 'fullhop_jumpsquat':
+                self.update_center(self.center[0] + self.ground_speed, self.center[1])
                 self.fullhop()
             elif self.action_state[2] == 'shorthop_jumpsquat':
+                self.update_center(self.center[0] + self.ground_speed, self.center[1])
                 self.shorthop()
             elif self.action_state[2] != 'grounded':
                 getattr(self, self.action_state[2])()
@@ -113,7 +115,7 @@ class Character:
             self.update_center(self.center[0] + self.air_speed[0], self.center[1] - self.air_speed[1])
             self.airdodge(self.action_state[3])
 
-    def update_center(self, x: int, y: int) -> None:
+    def update_center(self, x: float, y: float) -> None:
         raise NotImplementedError
 
     def update_air_speed(self, x: float, y: float) -> None:
@@ -226,7 +228,7 @@ class CharOne(Character):
                                      self.center[1] - width, width, width * 3)]
         self.hitboxes = []
         self.attributes = {'max_gr_speed': 10, 'vair_acc': 2, 'max_vair_speed': 10, 'hair_acc': 2, 'max_hair_speed':
-                            10, 'width': width, 'height': width * 2, 'fullhop_velocity': 25, 'shorthop_velocity': 20,
+                            8, 'width': width, 'height': width * 2, 'fullhop_velocity': 25, 'shorthop_velocity': 20,
                            'airdodge_conversion': 2, 'friction': 0.025, 'max_waveland_duration': 30}
         self.ground_speed = 0
         self.air_speed = [0, 0]

@@ -104,8 +104,8 @@ def handle(char_control_map: Dict) -> None:
         else:
             character.move(0)
         if character.action_state[2] == 'airborne':
-            if joystick_input.get_button_change(1) or joystick_input.get_axis_change(2, 0.1, 0.15) \
-                    or joystick_input.get_axis_change(3, 0.1, 0.15):
+            if joystick_input.get_button_change(1) or joystick_input.get_axis_change(2, 0.1, 0.11) \
+                    or joystick_input.get_axis_change(3, 0.1, 0.11):
                 if ctrl_stick_mapping == [0, 1] or cstick_mapping[1] == 1:
                     character.upair()
                 if ctrl_stick_mapping == [0, -1] or cstick_mapping[1] == -1:

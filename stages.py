@@ -56,7 +56,7 @@ class Stage:
                                 character.action_state = ['grounded', 0, 'grounded', 0]
                                 character.update_center(center[0], y_level + (center[1] - ecb[3]))
                                 character.hitboxes = []
-                        if char_input.get_axis_change(1, 0.25, 0.3) and char_input.axis_list[0][2] < 0 \
+                        if char_input.get_axis_change(1, 0.25, 0.3) and char_input.axis_list[0][1] < 0 \
                                 and ecb[3] == y_level and floor[3]:
                             character.update_center(center[0], center[1] + 1)
                             character.action_state = ['airborne', 0, 'airborne', 0]
