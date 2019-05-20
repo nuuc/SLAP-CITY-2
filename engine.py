@@ -6,6 +6,13 @@ def run(stage: stages.Stage, char_control_map: Dict) -> None:
     stage.handle_stage(char_control_map)
 
 
+
+
+
+
+
+
+
 def draw_boxes(obj: List[pygame.Rect], screen: pygame.Surface, color: Tuple[int, int, int]) -> None:
     for thing in obj:
         pygame.draw.rect(screen, color, thing)
