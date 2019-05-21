@@ -1,4 +1,4 @@
-import pygame, characters, math
+import pygame, characters, math, game_loop
 from typing import *
 
 pygame.init()
@@ -99,6 +99,8 @@ def handle(char_control_map: Dict) -> None:
         cstick_tilt = [joystick_input.get_axis(3), joystick_input.get_axis(2)]
         ctrl_stick_mapping = joystick_input.controller_mapping(ctrl_stick_tilt[0], ctrl_stick_tilt[1], 0.15)
         cstick_mapping = joystick_input.controller_mapping(cstick_tilt[0], cstick_tilt[1], 0.15)
+        if joystick_input.get_button_change(12):
+            game_loop.freeze(20)
         if ctrl_stick_mapping != [0, 0]:
             character.move(ctrl_stick_tilt[0])
         else:

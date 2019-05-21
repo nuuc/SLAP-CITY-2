@@ -37,33 +37,29 @@ class Stage:
             character.update()
             center = character.center
             ecb = character.ecb
-            if character.action_state[0] == 'fullhop_jumpsquat' or character.action_state[1] == 'airdodge':
-                print(ecb, prev_ecb)
             for floor in self.floor:
                 x_bounds = [floor[0], floor[1]]
                 y_level = floor[2]
-                if prev_ecb[3] <= y_level:
-                    if in_bound(ecb, x_bounds):
-                        if ecb[3] > y_level >= prev_ecb[3]:
-                            if character.action_state[0] == 'airdodge':
-                                character.ground_speed = character.air_speed[0] * character.attributes[
-                                    'airdodge_conversion']
-                                character.update_center(center[0], y_level + (center[1] - ecb[3]))
-                                character.action_state = ['waveland', 0, 'grounded', 0]
-                                character.invincible = [False, 0]
-                                character.update_air_speed(0, 0)
-                            elif not char_input.get_axis(1) <= -0.3 or not floor[3]:
-                                character.action_state = ['grounded', 0, 'grounded', 0]
-                                character.update_center(center[0], y_level + (center[1] - ecb[3]))
-                                character.hitboxes = []
-                        if char_input.get_axis_change(1, 0.25, 0.3) and char_input.axis_list[0][1] < 0 \
-                                and ecb[3] == y_level and floor[3]:
-                            character.update_center(center[0], center[1] + 1)
-                            character.action_state = ['airborne', 0, 'airborne', 0]
-                    else:
-                        if in_bound(prev_ecb, x_bounds) and ecb[3] == y_level:
-                            character.update_air_speed(character.ground_speed, 0)
-                            character.action_state = ['airborne', 0, 'airborne', 0]
+                if in_bound(ecb, x_bounds):
+                    if ecb[3] > y_level >= prev_ecb[3]:
+                        if character.action_state[0] == 'airdodge':
+                            character.ground_speed = character.air_speed[0] * character.attributes[
+                                'airdodge_conversion']
+                            character.update_center(center[0], y_level + (center[1] - ecb[3]))
+                            character.action_state = ['waveland', 0, 'grounded', 0]
+                            character.invincible = [False, 0]
+                            character.update_air_speed(0, 0)
+                        elif not char_input.get_axis(1) <= -0.3 or not floor[3]:
+                            character.action_state = ['grounded', 0, 'grounded', 0]
+                            character.update_center(center[0], y_level + (center[1] - ecb[3]))
+                            character.hitboxes = [[], [], False]
+                    elif char_input.get_axis_change(1, 0.25, 0.3) and char_input.axis_list[0][1] < 0 \
+                            and ecb[3] == y_level and floor[3]:
+                        character.update_center(center[0], center[1] + 1)
+                        character.action_state = ['airborne', 0, 'airborne', 0]
+                elif in_bound(prev_ecb, x_bounds) and ecb[3] == y_level:
+                    character.update_air_speed(character.ground_speed, 0)
+                    character.action_state = ['airborne', 0, 'airborne', 0]
             for wall in self.walls:
                 x_level = wall[2]
                 y_bounds = [wall[0], wall[1]]
@@ -76,7 +72,6 @@ class Stage:
                         character.update_center(x_level + (center[0] - ecb[0]), center[1])
                         character.update_air_speed(0, character.air_speed[1])
                         character.ground_speed = 0
-
 
 
 class FD(Stage):

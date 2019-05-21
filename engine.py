@@ -4,11 +4,27 @@ from typing import *
 
 def run(stage: stages.Stage, char_control_map: Dict) -> None:
     stage.handle_stage(char_control_map)
+    hitbox_collision(char_control_map)
 
 
 
-
-
+def hitbox_collision(char_control_map: Dict) -> None:
+    for character in char_control_map:
+        if not character.hitboxes[2]:
+            copy = char_control_map.copy()
+            del copy[character]
+            other_character = list(copy.keys())[0]
+            for i in range(len(character.hitboxes[0])):
+                hitbox = character.hitboxes[0][i]
+                if not hitbox.collidelist(other_character.hurtboxes) == -1:
+                    character.hitboxes[2] = True
+                    hitbox_data = character.hitboxes[1][i]
+                    other_character.damage += hitbox_data['damage']
+                    multiplier = hitbox_data['base_kb'] * hitbox_data['kb_growth']
+                    other_character.air_speed = [hitbox_data['direction'][0] * multiplier,
+                                                 hitbox_data['direction'][1] * multiplier]
+                    print(multiplier / 10)
+                    other_character.action_state = ['airborne', 0, 'hitstun', int(multiplier / 10)]
 
 
 

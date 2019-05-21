@@ -2,6 +2,7 @@ import pygame, numpy, math
 from typing import *
 
 JUMPSQUAT_FRAME = 3
+WAVELAND_ACTIONABLE = 10
 
 class Character:
     """
@@ -14,11 +15,13 @@ class Character:
     air_speed: A list of a character's horizontal and vertical air velocity
     center: A list of a character's x and y coordinates. This is used in reference to the characters hurtboxes/
     hitboxes.
+    damage: How much damage a character has taken. Higher percentage means higher knockback.
     direction: The direction a character is facing. Left will be False and right will be True.
     ground_speed: A character's ground speed
     ecb: A list of a character's edges for interacting with the stage. Its indexes are left, right, top and bottom.
     hurtboxes: A list of pygame rectangles of a character's hurtboxes.
-    hitboxes: A list of pygame rectangles of a character's active hitboxes.
+    hitboxes: A list with the first index being a list of a character's active hitboxes and the second index being
+    a dictionary of each hitbox data: 'damage', 'direction', 'kb_growth', 'base_kb'
     invincible: A list with the first index being True if a character is invincible and the second index is how many
     frames of invincibility it has left.
     jumped: True if a character has jumped in the air, False if they haven't.
@@ -34,15 +37,20 @@ class Character:
     'height': A character's height
     'fullhop_velocity': A character's initial fullhop velocity
     'shorthop_velocity': A character's initial shorthop velocity
+    'airdodge_conversion': How much a character's horizontal air speed is converted into ground speed
+    'max_waveland_duration': How long a character can be in the waveland state
+    'friction:' How much a character slides on the ground during a waveland.
+
     """
     action_state: List
     air_speed: List
     attributes: Dict
     center: List[float]
+    damage: int
     direction: bool
-    ecb: List
+    ecb: List[float]
     ground_speed: float
-    hitboxes: List[pygame.Rect]
+    hitboxes: List
     hurtboxes: List[pygame.Rect]
     invincible: List
     jumped: bool
@@ -52,10 +60,11 @@ class Character:
         self.air_speed = [0, 0]
         self.attributes = {}
         self.center = center
+        self.damage = 0
         self.direction = direction
         self.ecb = []
         self.ground_speed = 0
-        self.hitboxes = []
+        self.hitboxes = [[], [], False]
         self.hurtboxes = []
         self.invincible = [True, 60]
         self.jumped = False
@@ -90,8 +99,8 @@ class Character:
             if abs(self.ground_speed) <= 1:
                 self.ground_speed = 0
             else:
-                new_speed = self.ground_speed * math.sqrt((self.attributes['max_waveland_duration']
-                                                           - self.action_state[1]) * self.attributes['friction'])
+                new_speed = self.ground_speed * (self.attributes['max_waveland_duration']
+                            - self.action_state[1]) ** 2 * self.attributes['friction']
                 self.ground_speed = new_speed
             self.update_center(self.center[0] + self.ground_speed, self.center[1])
             if self.action_state[2] == 'fullhop_jumpsquat':
@@ -108,7 +117,9 @@ class Character:
             self.update_air_speed(self.air_speed[0], self.air_speed[1] - self.attributes['vair_acc'])
             self.update_center(self.center[0] + self.air_speed[0], self.center[1] - self.air_speed[1])
             self.ground_speed = 0
-            if not self.action_state[2] == 'airborne' and not self.action_state[2] == 'freefall':
+            if self.action_state[2] == 'hitstun':
+                pass
+            elif not self.action_state[2] == 'airborne' and not self.action_state[2] == 'freefall':
                 getattr(self, self.action_state[2])()
 
         elif self.action_state[0] == 'airdodge':
@@ -142,7 +153,7 @@ class Character:
                 self.direction = True
             elif tilt < 0:
                 self.direction = False
-        elif self.action_state[0] == 'waveland' and self.action_state[1] > 9 and tilt != 0:
+        elif self.action_state[0] == 'waveland' and self.action_state[1] > WAVELAND_ACTIONABLE and tilt != 0:
             self.action_state = ['grounded', 0, 'grounded', 0]
             self.ground_speed = self.attributes['max_gr_speed'] * tilt
             if tilt > 0:
@@ -218,7 +229,6 @@ class Character:
         raise NotImplementedError
 
 
-
 class CharOne(Character):
 
     def __init__(self, center: List[int], direction: bool, action_state: List) -> None:
@@ -226,10 +236,10 @@ class CharOne(Character):
         width = 30
         self.hurtboxes = [pygame.Rect(self.center[0] - width / 2,
                                      self.center[1] - width, width, width * 3)]
-        self.hitboxes = []
+        self.hitboxes = [[], [], False]
         self.attributes = {'max_gr_speed': 10, 'vair_acc': 2, 'max_vair_speed': 10, 'hair_acc': 2, 'max_hair_speed':
-                            8, 'width': width, 'height': width * 2, 'fullhop_velocity': 25, 'shorthop_velocity': 20,
-                           'airdodge_conversion': 2, 'friction': 0.025, 'max_waveland_duration': 30}
+                            8, 'fullhop_velocity': 25, 'shorthop_velocity': 20,
+                           'airdodge_conversion': 2, 'friction': 0.001, 'max_waveland_duration': 30}
         self.ground_speed = 0
         self.air_speed = [0, 0]
         self.jumped = False
@@ -257,34 +267,18 @@ class CharOne(Character):
         if self.ground_actionable() or self.action_state[2] == 'ftilt':
             self.action_state[2] = 'ftilt'
             self.action_state[3] += 1
-            if self.action_state[3] > 7:
+            if self.action_state[3] == 7:
                 if self.direction:
-                    self.hitboxes = [pygame.Rect(self.center[0], self.center[1], 10, 10)]
+                    self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 80, 30)],
+                                     [{'damage': 10, 'direction': [0, 1], 'kb_growth': 3, 'base_kb': 15}], False]
                 else:
-                    self.hitboxes = [pygame.Rect(self.center[0], self.center[1], 10, 10)]
+                    self.hitboxes = [[pygame.Rect(self.center[0], self.center[1] - 50, 30, 80)],
+                                     [{'damage': 10, 'direction': [0, 1], 'kb_growth': 3, 'base_kb': 15}], False]
             if self.action_state[3] > 15:
-                self.hitboxes = []
+                self.hitboxes = [[], [], False]
             if self.action_state[3] > 20:
                 self.action_state[2] = 'grounded'
                 self.action_state[3] = 0
-        # if self.ground_actionable():
-        #     self.action_state[0] = 'ftilt'
-        #     self.action_state[1] = 1
-        # elif self.action_state[0] == 'ftilt'
-        #     self.action_state[1] += 1
-        #     if self.action_state[1] > 7:
-        #         if self.direction:
-        #             # UPDATE HITBOXES
-        #         else:
-        #             # UPDATE HITBOXES
-        #     if self.action_state[1] > 15:
-        #         self.hitboxes = []
-        #     if self.action_state[1] > 20:
-        #         self.action_state[0] = 'grounded'
-        #         self.action_state[1] = 0
-        # This is an alternate version of the code earlier, where the action state is set only at the startup, not
-        # every frame. Currently, there should be no difference, except a tiny bit in runtime, but it may be useful
-        # to use this later to account for something.
 
     def fair(self) -> None:
         if self.air_actionable() or self.action_state[2] == 'fair':
@@ -292,11 +286,13 @@ class CharOne(Character):
             self.action_state[3] += 1
             if self.action_state[3] > 8:
                 if self.direction:
-                    self.hitboxes = [pygame.Rect(self.center[0], self.center[1], 10, 10)]
+                    self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 10, 10)],
+                                     [{'damage': 10, 'direction': [0, 1], 'kb_growth': 10, 'base_kb': 20}], False]
                 else:
-                    self.hitboxes = [pygame.Rect(self.center[0], self.center[1], 10, 10)]
+                    self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 10, 10)],
+                                     [{'damage': 10, 'direction': [0, 1], 'kb_growth': 10, 'base_kb': 20}], False]
             if self.action_state[3] > 16:
-                self.hitboxes = []
+                self.hitboxes = [[], [], False]
             if self.action_state[3] > 20:
                 self.action_state[2] = 'airborne'
                 self.action_state[3] = 0
@@ -307,11 +303,13 @@ class CharOne(Character):
             self.action_state[3] += 1
             if self.action_state[3] > 8:
                 if self.direction:
-                    self.hitboxes = [pygame.Rect(self.center[0], self.center[1], 10, 10)]
+                    self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 10, 10)],
+                                     [{'damage': 10, 'direction': [0, 1], 'kb_growth': 10, 'base_kb': 20}], False]
                 else:
-                    self.hitboxes = [pygame.Rect(self.center[0], self.center[1], 10, 10)]
+                    self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 10, 10)],
+                                     [{'damage': 10, 'direction': [0, 1], 'kb_growth': 10, 'base_kb': 20}], False]
             if self.action_state[3] > 16:
-                self.hitboxes = []
+                self.hitboxes = [[], [], False]
             if self.action_state[3] > 20:
                 self.action_state[2] = 'airborne'
                 self.action_state[3] = 0
@@ -322,11 +320,13 @@ class CharOne(Character):
             self.action_state[3] += 1
             if self.action_state[3] > 8:
                 if self.direction:
-                    self.hitboxes = [pygame.Rect(self.center[0], self.center[1], 10, 10)]
+                    self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 10, 10)],
+                                     [{'damage': 10, 'direction': [0, 1], 'kb_growth': 10, 'base_kb': 20}], False]
                 else:
-                    self.hitboxes = [pygame.Rect(self.center[0], self.center[1], 10, 10)]
+                    self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 10, 10)],
+                                     [{'damage': 10, 'direction': [0, 1], 'kb_growth': 10, 'base_kb': 20}], False]
             if self.action_state[3] > 16:
-                self.hitboxes = []
+                self.hitboxes = [[], [], False]
             if self.action_state[3] > 20:
                 self.action_state[2] = 'airborne'
                 self.action_state[3] = 0
@@ -337,11 +337,13 @@ class CharOne(Character):
             self.action_state[3] += 1
             if self.action_state[3] > 8:
                 if self.direction:
-                    self.hitboxes = [pygame.Rect(self.center[0], self.center[1], 10, 10)]
+                    self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 10, 10)],
+                                     [{'damage': 10, 'direction': [0, 1], 'kb_growth': 10, 'base_kb': 20}], False]
                 else:
-                    self.hitboxes = [pygame.Rect(self.center[0], self.center[1], 10, 10)]
+                    self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 10, 10)],
+                                     [{'damage': 10, 'direction': [0, 1], 'kb_growth': 10, 'base_kb': 20}], False]
             if self.action_state[3] > 16:
-                self.hitboxes = []
+                self.hitboxes = [[], [], False]
             if self.action_state[3] > 20:
                 self.action_state[2] = 'airborne'
                 self.action_state[3] = 0

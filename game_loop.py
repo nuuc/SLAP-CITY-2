@@ -4,6 +4,7 @@ tony = characters.CharOne([500, 200], False, ['airborne', 0, 'airborne', 0])
 ben = characters.CharOne([600, 200], False, ['airborne', 0, 'airborne', 0])
 char_control_map = {tony: 1, ben: 4}
 stage = stages.FD()
+clock = pygame.time.Clock()
 
 
 def loop(screen: pygame.Surface) -> None:
@@ -15,13 +16,20 @@ def loop(screen: pygame.Surface) -> None:
             engine.draw_boxes(character.hurtboxes, screen, (0, 0, 255))
         else:
             engine.draw_boxes(character.hurtboxes, screen, (0, 0, 0))
-        engine.draw_boxes(character.hitboxes, screen, (255, 0, 0))
+        engine.draw_boxes(character.hitboxes[0], screen, (255, 0, 0))
 
     engine.draw_lines(stage.floor, screen, (0, 255, 0), True)
     engine.draw_lines(stage.walls, screen, (0, 0, 255), False)
     engine.draw_ecb(screen, tony)
     engine.draw_ecb(screen, ben)
     pygame.display.update()
+    clock.tick(60)
+
+
+def freeze(frame: int) -> None:
+    while frame > 0:
+        frame -= 1
+        clock.tick(60)
 
 
 def check_exit() -> bool:
