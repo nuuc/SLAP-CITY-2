@@ -43,19 +43,26 @@ class Stage:
                 if in_bound(ecb, x_bounds):
                     if ecb[3] > y_level >= prev_ecb[3]:
                         if character.action_state[0] == 'airdodge':
-                            character.ground_speed = character.air_speed[0] * character.attributes[
-                                'airdodge_conversion']
-                            character.update_center(center[0], y_level + (center[1] - ecb[3]))
+                            character.ground_speed = character.air_speed[0]
                             character.action_state = ['waveland', 0, 'grounded', 0]
+                            character.update_center(center[0], y_level + (center[1] - ecb[3]))
+                            # ecb[3] should be the ecb for when the character is on the ground, not when it's in the
+                            # air. I'm thinking of writing a get_ecb() function that gets ecb based on action state
+                            # and frame so that this properly updates.
                             character.invincible = [False, 0]
                             character.update_air_speed(0, 0)
+                            character.jumped = False
                         elif not char_input.get_axis(1) <= -0.3 or not floor[3]:
+                            character.update_air_speed(0, 0)
+                            character.jumped = False
                             character.action_state = ['grounded', 0, 'grounded', 0]
                             character.update_center(center[0], y_level + (center[1] - ecb[3]))
+                            # Same thing as last comment here.
                             character.hitboxes = [[], [], False]
                     elif char_input.get_axis_change(1, 0.25, 0.3) and char_input.axis_list[0][1] < 0 \
                             and ecb[3] == y_level and floor[3]:
                         character.update_center(center[0], center[1] + 1)
+                        character.update_air_speed(0, -character.attributes['max_vair_speed'])
                         character.action_state = ['airborne', 0, 'airborne', 0]
                 elif in_bound(prev_ecb, x_bounds) and ecb[3] == y_level:
                     character.update_air_speed(character.ground_speed, 0)
@@ -73,12 +80,11 @@ class Stage:
                         character.update_air_speed(0, character.air_speed[1])
                         character.ground_speed = 0
 
-
-class FD(Stage):
+class Battlefield(Stage):
 
     def __init__(self) -> None:
         super(Stage, self).__init__()
         self.ceiling = [[(300, 700), (900, 700)]]
-        self.floor = [[400, 600, 375, True], [550, 700, 300, True], [800, 1000, 350, True], [300, 900, 500, False]]
-        self.walls = [[500, 700, 300], [500, 700, 900]]
+        self.floor = [[290, 990, 500, False], [345, 540, 370, True], [740, 935, 370, True], [545, 735, 235, True]]
+        self.walls = [[500, 700, 290], [500, 700, 990]]
 

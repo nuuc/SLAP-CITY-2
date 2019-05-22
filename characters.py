@@ -39,7 +39,7 @@ class Character:
     'shorthop_velocity': A character's initial shorthop velocity
     'airdodge_conversion': How much a character's horizontal air speed is converted into ground speed
     'max_waveland_duration': How long a character can be in the waveland state
-    'friction:' How much a character slides on the ground during a waveland.
+
 
     """
     action_state: List
@@ -80,45 +80,41 @@ class Character:
             self.invincible[1] -= 1
             if self.invincible[1] == 0:
                 self.invincible = [False, 0]
-        if self.action_state[0] == 'grounded':
+
+        if self.action_state[0] == 'grounded' or self.action_state[0] == 'waveland':
             self.update_air_speed(0, 0)
             self.jumped = False
+            if self.action_state[0] == 'waveland':
+                self.action_state[1] += 1
+                if not self.ground_speed == 0:
+                    if self.ground_speed > self.attributes['high_traction_speed']:
+                        new_speed = self.ground_speed - self.attributes['traction'] * numpy.sign(self.ground_speed)
+                    else:
+                        new_speed = self.ground_speed - self.attributes['traction'] / 2 * numpy.sign(self.ground_speed)
+                    if not numpy.sign(new_speed) == numpy.sign(self.ground_speed):
+                        self.ground_speed = 0
+                    else:
+                        self.ground_speed = new_speed
             if self.action_state[2] == 'grounded':
                 self.update_center(self.center[0] + self.ground_speed, self.center[1])
-            elif self.action_state[2] == 'fullhop_jumpsquat':
+            elif self.action_state[2] == 'jumpsquat':
                 self.update_center(self.center[0] + self.ground_speed, self.center[1])
-                self.fullhop()
-            elif self.action_state[2] == 'shorthop_jumpsquat':
-                self.update_center(self.center[0] + self.ground_speed, self.center[1])
-                self.shorthop()
+                self.jump(self.action_state[4])
+            elif self.action_state[2] == 'auto_wavedash':
+                self.auto_wavedash(self.action_state[4])
             elif self.action_state[2] != 'grounded':
                 getattr(self, self.action_state[2])()
-
-        elif self.action_state[0] == 'waveland':
-            self.action_state[1] += 1
-            if abs(self.ground_speed) <= 1:
-                self.ground_speed = 0
-            else:
-                new_speed = self.ground_speed * (self.attributes['max_waveland_duration']
-                            - self.action_state[1]) ** 2 * self.attributes['friction']
-                self.ground_speed = new_speed
-            self.update_center(self.center[0] + self.ground_speed, self.center[1])
-            if self.action_state[2] == 'fullhop_jumpsquat':
-                self.fullhop()
-            elif self.action_state[2] == 'shorthop_jumpsquat':
-                self.shorthop()
-            elif self.action_state[2] != 'grounded':
-                getattr(self, self.action_state[2])()
-            if self.action_state[1] > self.attributes['max_waveland_duration']:
-                self.action_state[0] = 'grounded'
-                self.action_state[1] = 0
 
         elif self.action_state[0] == 'airborne':
             self.update_air_speed(self.air_speed[0], self.air_speed[1] - self.attributes['vair_acc'])
             self.update_center(self.center[0] + self.air_speed[0], self.center[1] - self.air_speed[1])
             self.ground_speed = 0
             if self.action_state[2] == 'hitstun':
-                pass
+                self.action_state[3] -= 1
+                if self.action_state[3] == 0:
+                    print('done')
+                    self.action_state[2] = 'airborne'
+                    self.action_state[3] = 0
             elif not self.action_state[2] == 'airborne' and not self.action_state[2] == 'freefall':
                 getattr(self, self.action_state[2])()
 
@@ -126,19 +122,27 @@ class Character:
             self.update_center(self.center[0] + self.air_speed[0], self.center[1] - self.air_speed[1])
             self.airdodge(self.action_state[3])
 
+        elif self.action_state[0] == 'hitlag':
+            self.action_state[1] -= 1
+            if self.action_state[1] == 0:
+                self.action_state = self.action_state[2]
+
     def update_center(self, x: float, y: float) -> None:
         raise NotImplementedError
 
     def update_air_speed(self, x: float, y: float) -> None:
         self.air_speed = [x, y]
         if self.air_speed[0] > self.attributes['max_hair_speed']:
-            self.air_speed[0] = self.attributes['max_hair_speed'] * numpy.sign(x)
+            self.air_speed[0] -= self.attributes['hair_acc'] / 4 * numpy.sign(x)
         if self.air_speed[1] < -self.attributes['max_vair_speed']:
             self.air_speed[1] = -self.attributes['max_vair_speed']
 
     def ground_actionable(self) -> bool:
         if self.action_state[2] == 'grounded':
-            return True
+            if self.action_state[0] == 'waveland' and self.action_state[1] > WAVELAND_ACTIONABLE \
+                    or self.action_state[0] == 'grounded':
+                return True
+            return False
         return False
 
     def air_actionable(self) -> bool:
@@ -146,21 +150,19 @@ class Character:
             return True
         return False
 
+    def enter_hitlag(self, frames: int, attack_data: Dict) -> None:
+        self.action_state = ['hitlag', frames, self.action_state, attack_data]
+
     def move(self, tilt) -> None:
-        if self.ground_actionable() and self.action_state[0] != 'waveland':
+        if self.ground_actionable():
+            if self.action_state[0] == 'waveland':
+                self.action_state = ['grounded', 0, 'grounded', 0]
             self.ground_speed = self.attributes['max_gr_speed'] * tilt
             if tilt > 0:
                 self.direction = True
             elif tilt < 0:
                 self.direction = False
-        elif self.action_state[0] == 'waveland' and self.action_state[1] > WAVELAND_ACTIONABLE and tilt != 0:
-            self.action_state = ['grounded', 0, 'grounded', 0]
-            self.ground_speed = self.attributes['max_gr_speed'] * tilt
-            if tilt > 0:
-                self.direction = True
-            elif tilt < 0:
-                self.direction = False
-        elif self.action_state[0] == 'airborne':
+        elif self.action_state[0] == 'airborne' and self.action_state[2] != 'hitstun':
             set_spd = tilt * self.attributes['max_hair_speed']
             if self.air_speed[0] != set_spd:
                 if self.air_speed[0] < set_spd:
@@ -172,46 +174,49 @@ class Character:
                     if self.air_speed[0] < set_spd:
                         self.update_air_speed(set_spd, self.air_speed[1])
 
-    def fullhop(self) -> None:
+    def jump(self, released: bool) -> None:
         if not self.jumped and self.action_state[0] == 'airborne':
             self.jumped = True
             self.update_air_speed(self.air_speed[0], self.attributes['fullhop_velocity'])
-        if self.ground_actionable() or self.action_state[2] == 'fullhop_jumpsquat':
-            self.action_state[2] = 'fullhop_jumpsquat'
+        elif self.ground_actionable():
+            self.action_state.insert(4, released)
+            self.action_state[2] = 'jumpsquat'
+            self.action_state[3] = 1
+        elif self.action_state[2] == 'jumpsquat':
             self.action_state[3] += 1
             if self.action_state[3] > JUMPSQUAT_FRAME:
+                if self.action_state[4]:
+                    self.update_air_speed(self.ground_speed, self.attributes['shorthop_velocity'])
+                else:
+                    self.update_air_speed(self.ground_speed, self.attributes['fullhop_velocity'])
                 self.action_state = ['airborne', 0, 'airborne', 0]
-                self.update_air_speed(self.ground_speed, self.attributes['fullhop_velocity'])
 
-    def shorthop(self) -> None:
-        if self.ground_actionable() or self.action_state[2] == 'shorthop_jumpsquat':
-            self.action_state[2] = 'shorthop_jumpsquat'
-            self.action_state[3] += 1
-            if self.action_state[3] > JUMPSQUAT_FRAME:
-                self.action_state = ['airborne', 0, 'airborne', 0]
-                self.update_air_speed(self.ground_speed * 1, self.attributes['shorthop_velocity'])
-
-    def airdodge(self, angle: List) -> None:
+    def airdodge(self, angle: float) -> None:
         if self.air_actionable() or self.action_state[0] == 'airdodge':
             self.action_state[0] = 'airdodge'
             self.action_state[1] += 1
             self.action_state[2] = 'airdodge'
             self.action_state[3] = angle
             if self.action_state[1] == 3:
-                self.invincible = [True, 29]
-            if self.action_state[1] < 42:
-                multiplier = 900 / (self.action_state[1] + 7) ** 2
-                self.air_speed = [angle[0] * multiplier, angle[1] * multiplier]
-            if self.action_state[1] > 42:
+                self.invincible = [True, 28]
+            elif self.action_state[1] < 28:
+                multiplier = (605535 / (self.action_state[1] + 29.65) ** 3.24) - 0.25
+                self.air_speed = [math.cos(angle) * multiplier, math.sin(angle) * multiplier]
+            elif self.action_state[1] >= 29:
                 self.action_state = ['airborne', 0, 'freefall', 0]
 
     def auto_wavedash(self, angle: List) -> None:
-        if self.action_state[2] == 'fullhop_jumpsquat' or self.action_state[2] == 'shorthop_jumpsquat':
+        if self.action_state[2] == 'jumpsquat':
             self.action_state[2] = 'auto_wavedash'
             self.action_state[3] += 1
+            self.action_state.insert(4, angle)
             if self.action_state[3] > JUMPSQUAT_FRAME:
-                self.action_state = ['airborne', 0, 'airborne', 0]
-                self.airdodge(angle)
+                self.action_state = ['airborne', 0, 'airborne', 0, self.action_state[4]]
+        elif self.action_state[2] == 'auto_wavedash':
+            self.action_state[3] += 1
+            if self.action_state[3] > JUMPSQUAT_FRAME:
+                self.action_state = ['airborne', 0, 'airborne', 0, self.action_state[4]]
+                self.airdodge(self.action_state[4])
 
     def ftilt(self) -> None:
         raise NotImplementedError
@@ -237,9 +242,9 @@ class CharOne(Character):
         self.hurtboxes = [pygame.Rect(self.center[0] - width / 2,
                                      self.center[1] - width, width, width * 3)]
         self.hitboxes = [[], [], False]
-        self.attributes = {'max_gr_speed': 10, 'vair_acc': 2, 'max_vair_speed': 10, 'hair_acc': 2, 'max_hair_speed':
-                            8, 'fullhop_velocity': 25, 'shorthop_velocity': 20,
-                           'airdodge_conversion': 2, 'friction': 0.001, 'max_waveland_duration': 30}
+        self.attributes = {'max_gr_speed': 11.26, 'vair_acc': 1.18, 'max_vair_speed': 14.34, 'hair_acc': 0.41,
+                           'max_hair_speed': 4.27, 'fullhop_velocity': 18.84, 'shorthop_velocity': 10.41,
+                           'traction': 0.82, 'high_traction_speed': 8.19, 'weight': 30}
         self.ground_speed = 0
         self.air_speed = [0, 0]
         self.jumped = False
@@ -270,10 +275,10 @@ class CharOne(Character):
             if self.action_state[3] == 7:
                 if self.direction:
                     self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 80, 30)],
-                                     [{'damage': 10, 'direction': [0, 1], 'kb_growth': 3, 'base_kb': 15}], False]
+                                     [{'damage': 10, 'direction': 90, 'KBG': 3, 'BKB': 15}], False]
                 else:
                     self.hitboxes = [[pygame.Rect(self.center[0], self.center[1] - 50, 30, 80)],
-                                     [{'damage': 10, 'direction': [0, 1], 'kb_growth': 3, 'base_kb': 15}], False]
+                                     [{'damage': 10, 'direction': 90, 'KBG': 3, 'BKB': 15}], False]
             if self.action_state[3] > 15:
                 self.hitboxes = [[], [], False]
             if self.action_state[3] > 20:

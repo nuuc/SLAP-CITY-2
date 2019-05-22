@@ -1,4 +1,4 @@
-import pygame, characters, math, game_loop
+import pygame, characters, math, game_loop, engine
 from typing import *
 
 pygame.init()
@@ -46,10 +46,8 @@ class Input:
         return [0, 0]
 
     @staticmethod
-    def max_of_angle(angle: List) -> List:
-        radius = math.sqrt(angle[0] ** 2 + angle[1] ** 2)
-        ratio = CTRL_STICK_RADIUS / radius
-        return [angle[0] * ratio, angle[1] * ratio]
+    def get_angle(tilt: List) -> float:
+        return math.atan2(tilt[1], tilt[0])
 
     def get_button_change(self, button: int) -> bool:
         if self.button_list[0][button] and not self.button_list[1][button]:
@@ -105,12 +103,12 @@ def handle(char_control_map: Dict) -> None:
             character.move(ctrl_stick_tilt[0])
         else:
             character.move(0)
-        if character.action_state[2] == 'airborne':
+        if character.action_state[0] == 'airborne':
             if joystick_input.get_button_change(1) or joystick_input.get_axis_change(2, 0.1, 0.11) \
                     or joystick_input.get_axis_change(3, 0.1, 0.11):
                 if ctrl_stick_mapping == [0, 1] or cstick_mapping[1] == 1:
                     character.upair()
-                if ctrl_stick_mapping == [0, -1] or cstick_mapping[1] == -1:
+                elif ctrl_stick_mapping == [0, -1] or cstick_mapping[1] == -1:
                     character.dair()
                 if character.direction:
                     if ctrl_stick_mapping == [1, 0] or cstick_mapping[0] == 1:
@@ -122,20 +120,26 @@ def handle(char_control_map: Dict) -> None:
                         character.bair()
                     elif ctrl_stick_mapping == [-1, 0] or cstick_mapping[0] == -1:
                         character.fair()
+            elif joystick_input.get_axis_change(1, 0.25, 0.3) and character.air_speed[1] < 0:
+                character.update_air_speed(character.air_speed[0], -character.attributes['max_vair_speed'])
             elif joystick_input.get_button_change(3):
-                character.fullhop()
+                character.jump(True)
             elif joystick_input.get_button_change(4) or joystick_input.get_button_change(5):
                 if ctrl_stick_mapping != [0, 0]:
-                    character.airdodge(joystick_input.max_of_angle(ctrl_stick_tilt))
+                    character.airdodge(joystick_input.get_angle(ctrl_stick_tilt))
                 else:
                     character.airdodge([0, 0])
         elif character.action_state[0] == 'grounded' or character.action_state[0] == 'waveland':
             if abs(ctrl_stick_tilt[0]) > 0.25 and joystick_input.get_button_change(1):
                 character.ftilt()
             elif joystick_input.get_button_change(3):
-                character.fullhop()
+                character.jump(False)
             elif joystick_input.get_button_change(0):
-                character.shorthop()
-        elif character.action_state[0] == 'fullhop_jumpsquat' or character.action_state[0] == 'shorthop_jumpsquat':
-            if ctrl_stick_mapping != [0, 0]:
-                character.auto_wavedash(joystick_input.max_of_angle(ctrl_stick_tilt))
+                character.jump(True)
+            elif character.action_state[2] == 'jumpsquat' and joystick_input.button_list[0][5] \
+                    and not ctrl_stick_mapping == [0, 0]:
+                character.auto_wavedash(joystick_input.get_angle(ctrl_stick_tilt))
+        elif character.action_state[0] == 'hitlag' and character.action_state[1] == 2 and \
+                character.action_state[3] is not None:
+            engine.handle_hit(character, character.action_state[3], joystick_input.get_angle(ctrl_stick_tilt))
+
