@@ -141,5 +141,5 @@ def handle(char_control_map: Dict) -> None:
                 character.auto_wavedash(joystick_input.get_angle(ctrl_stick_tilt))
         elif character.action_state[0] == 'hitlag' and character.action_state[1] == 2 and \
                 character.action_state[3] is not None:
-            engine.handle_hit(character, character.action_state[3], joystick_input.get_angle(ctrl_stick_tilt))
+            engine.handle_hit(character, character.action_state[3], math.degrees(joystick_input.get_angle(ctrl_stick_tilt)))
 

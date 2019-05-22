@@ -175,7 +175,7 @@ class Character:
                         self.update_air_speed(set_spd, self.air_speed[1])
 
     def jump(self, released: bool) -> None:
-        if not self.jumped and self.action_state[0] == 'airborne':
+        if not self.jumped and self.action_state[0] == 'airborne' and self.action_state[2] != 'hitstun':
             self.jumped = True
             self.update_air_speed(self.air_speed[0], self.attributes['fullhop_velocity'])
         elif self.ground_actionable():
@@ -292,10 +292,10 @@ class CharOne(Character):
             if self.action_state[3] > 8:
                 if self.direction:
                     self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 10, 10)],
-                                     [{'damage': 10, 'direction': [0, 1], 'kb_growth': 10, 'base_kb': 20}], False]
+                                     [{'damage': 10, 'direction': 90, 'KBG': 3, 'BKB': 15}], False]
                 else:
                     self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 10, 10)],
-                                     [{'damage': 10, 'direction': [0, 1], 'kb_growth': 10, 'base_kb': 20}], False]
+                                     [{'damage': 10, 'direction': 90, 'KBG': 3, 'BKB': 15}], False]
             if self.action_state[3] > 16:
                 self.hitboxes = [[], [], False]
             if self.action_state[3] > 20:
@@ -309,10 +309,10 @@ class CharOne(Character):
             if self.action_state[3] > 8:
                 if self.direction:
                     self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 10, 10)],
-                                     [{'damage': 10, 'direction': [0, 1], 'kb_growth': 10, 'base_kb': 20}], False]
+                                     [{'damage': 10, 'direction': 90, 'KBG': 3, 'BKB': 15}], False]
                 else:
                     self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 10, 10)],
-                                     [{'damage': 10, 'direction': [0, 1], 'kb_growth': 10, 'base_kb': 20}], False]
+                                     [{'damage': 10, 'direction': 90, 'KBG': 3, 'BKB': 15}], False]
             if self.action_state[3] > 16:
                 self.hitboxes = [[], [], False]
             if self.action_state[3] > 20:
@@ -323,13 +323,13 @@ class CharOne(Character):
         if self.air_actionable() or self.action_state[2] == 'upair':
             self.action_state[2] = 'upair'
             self.action_state[3] += 1
-            if self.action_state[3] > 8:
+            if self.action_state[3] == 8:
                 if self.direction:
                     self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 10, 10)],
-                                     [{'damage': 10, 'direction': [0, 1], 'kb_growth': 10, 'base_kb': 20}], False]
+                                     [{'damage': 10, 'direction': 45, 'KBG': 3, 'BKB': 15}], False]
                 else:
                     self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 10, 10)],
-                                     [{'damage': 10, 'direction': [0, 1], 'kb_growth': 10, 'base_kb': 20}], False]
+                                     [{'damage': 10, 'direction': 45, 'KBG': 3, 'BKB': 15}], False]
             if self.action_state[3] > 16:
                 self.hitboxes = [[], [], False]
             if self.action_state[3] > 20:
@@ -343,10 +343,10 @@ class CharOne(Character):
             if self.action_state[3] > 8:
                 if self.direction:
                     self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 10, 10)],
-                                     [{'damage': 10, 'direction': [0, 1], 'kb_growth': 10, 'base_kb': 20}], False]
+                                     [{'damage': 10, 'direction': 90, 'KBG': 3, 'BKB': 15}], False]
                 else:
                     self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 10, 10)],
-                                     [{'damage': 10, 'direction': [0, 1], 'kb_growth': 10, 'base_kb': 20}], False]
+                                     [{'damage': 10, 'direction': 90, 'KBG': 3, 'BKB': 15}], False]
             if self.action_state[3] > 16:
                 self.hitboxes = [[], [], False]
             if self.action_state[3] > 20:

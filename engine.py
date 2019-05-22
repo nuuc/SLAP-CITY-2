@@ -28,33 +28,31 @@ def handle_hit(character: characters.Character, attack_data: Dict, di: float):
                                         / (character.attributes['weight'] + 100)) + 18) + attack_data['BKB']
     direction = attack_data['direction']
     max_angles = [angle_converter(direction + 90), angle_converter(direction - 90)]
-    angle_diff = [angle_converter(di) - max_angles[0], 360 - angle_converter(di) - max_angles[1]]
-    if abs(angle_diff[0]) < abs(angle_diff[1]):
-        influence = abs(angle_diff[0] / 90) * 18
-    elif abs(angle_diff[0]) > abs(angle_diff[1]):
-        influence = -abs(angle_diff[0] / 90) * 18
+    delt_angle = [angle_diff(di, max_angles[0]), angle_diff(di, max_angles[1])]
+    if delt_angle[0] < delt_angle[1]:
+        influence = angle_converter(direction + (((90 - delt_angle[0]) / 90) * 18))
+    elif abs(delt_angle[0]) > abs(delt_angle[1]):
+        influence = angle_converter(direction - (((90 - delt_angle[1]) / 90) * 18))
     else:
         influence = 0
-
-    character.action_state = ['airborne', 0, 'hitstun', int(multiplier * 0.4)]
-    character.air_speed = [math.cos(math.radians(angle_reconverter(direction + influence))) * multiplier * 0.15,
-                            math.sin(math.radians(angle_reconverter(direction + influence))) * multiplier * 0.15]
+    character.action_state = ['airborne', 0, 'hitstun', int(multiplier * 0.1)]
+    character.air_speed = [math.cos(math.radians(influence)) * multiplier * 0.15,
+                            math.sin(math.radians(influence)) * multiplier * 0.15]
 
 
 def angle_converter(angle: float) -> float:
-    if angle > 360:
-        return 360 - angle
-    if angle < 0:
-        return 360 + angle
-    return angle
-
-
-def angle_reconverter(angle: float) -> float:
     if angle >= 360:
         return 360 - angle
-    elif angle >= 180:
+    if angle >= 180:
         return angle - 360
     return angle
+
+
+def angle_diff(angle_one: float, angle_two: float) -> float:
+    if angle_one >= -180 and angle_two < 180:
+        return min(abs(360 + angle_one - angle_two),  abs(-angle_one + angle_two))
+    elif angle_one < 180 and angle_two >= -180:
+        return angle_diff(angle_two, angle_one)
 
 
 def developer_draw_all(screen: pygame.Surface, char_control_map: Dict, stage: stages.Stage) -> None:
