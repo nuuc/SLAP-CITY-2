@@ -316,11 +316,18 @@ class CharOne(Character):
             self.action_state[3] += 1
             if self.action_state[3] == 7:
                 if self.direction:
-                    self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 80, 30)],
-                                     [{'damage': 9, 'direction': 45, 'KBG': 100, 'BKB': 5}], False]
+                    self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 50, 30)],
+                                     [{'damage': 9, 'direction': 90, 'KBG': 100, 'BKB': 30}], False]
                 else:
-                    self.hitboxes = [[pygame.Rect(self.center[0], self.center[1] - 50, 30, 80)],
-                                     [{'damage': 10, 'direction': 45, 'KBG': 100, 'BKB': 5}], False]
+                    self.hitboxes = [[pygame.Rect(self.center[0] - 60, self.center[1], 50, 30)],
+                                     [{'damage': 10, 'direction': 90, 'KBG': 100, 'BKB': 30}], False]
+            if self.action_state[3] == 12:
+                if self.direction:
+                    self.hitboxes[0] = [pygame.Rect(self.center[0], self.center[1], 90, 30)]
+                    self.hitboxes[1] = [{'damage': 9, 'direction': 90, 'KBG': 100, 'BKB': 5}]
+                else:
+                    self.hitboxes[0] = [pygame.Rect(self.center[0] - 90, self.center[1], 90, 30)]
+                    self.hitboxes[1] = [{'damage': 10, 'direction': 90, 'KBG': 100, 'BKB': 5}]
             if self.action_state[3] > 15:
                 self.hitboxes = [[], [], False]
             if self.action_state[3] > 20:
@@ -367,11 +374,18 @@ class CharOne(Character):
             self.action_state[3] += 1
             if self.action_state[3] == 8:
                 if self.direction:
-                    self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 10, 10)],
-                                     [{'damage': 10, 'direction': 45, 'KBG': 3, 'BKB': 15}], False]
+                    self.hitboxes = [[pygame.Rect(self.center[0] - 30, self.center[1] - 20, 60, 10)],
+                                     [{'damage': 10, 'direction': 90, 'KBG': 50, 'BKB': 50}], False]
                 else:
-                    self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 10, 10)],
-                                     [{'damage': 10, 'direction': 45, 'KBG': 3, 'BKB': 15}], False]
+                    self.hitboxes = [[pygame.Rect(self.center[0] - 30, self.center[1] - 20, 60, 10)],
+                                     [{'damage': 10, 'direction': 90, 'KBG': 50, 'BKB': 50}], False]
+            elif 16 > self.action_state[3] > 8:
+                if self.direction:
+                    self.hitboxes[0][0] = self.hitboxes[0][0].move(0, self.action_state[3] * -3)
+                    self.hitboxes[1] = [{'damage': 10, 'direction': 90, 'KBG': 700, 'BKB': 300}]
+                else:
+                    self.hitboxes[0][0] = self.hitboxes[0][0].move(0, self.action_state[3] * -3)
+                    self.hitboxes[1] = [{'damage': 10, 'direction': 90, 'KBG': 700, 'BKB': 300}]
             if self.action_state[3] > 16:
                 self.hitboxes = [[], [], False]
             if self.action_state[3] > 20:
@@ -379,16 +393,16 @@ class CharOne(Character):
                 self.action_state[3] = 0
 
     def dair(self) -> None:
-        if self.air_actionable() or self.action_state[2] == 'upair':
-            self.action_state[2] = 'upair'
+        if self.air_actionable() or self.action_state[2] == 'dair':
+            self.action_state[2] = 'dair'
             self.action_state[3] += 1
             if self.action_state[3] > 8:
                 if self.direction:
                     self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 10, 10)],
-                                     [{'damage': 10, 'direction': 90, 'KBG': 3, 'BKB': 15}], False]
+                                     [{'damage': 10, 'direction': -90, 'KBG': 3, 'BKB': 15}], False]
                 else:
                     self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 10, 10)],
-                                     [{'damage': 10, 'direction': 90, 'KBG': 3, 'BKB': 15}], False]
+                                     [{'damage': 10, 'direction': -90, 'KBG': 3, 'BKB': 15}], False]
             if self.action_state[3] > 16:
                 self.hitboxes = [[], [], False]
             if self.action_state[3] > 20:

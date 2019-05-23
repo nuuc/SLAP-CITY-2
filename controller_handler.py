@@ -143,19 +143,19 @@ def handle(char_control_map: Dict) -> None:
         if character.action_state[0] == 'airborne':
             if controller.get_button_change(1) or controller.get_axis_change(2, 0.1, 0.11) \
                     or controller.get_axis_change(3, 0.1, 0.11):
-                if ctrl_stick_mapping == [0, 1] or cstick_mapping[1] == 1:
+                if ctrl_stick_mapping[1] == 1 or cstick_mapping[1] == 1:
                     character.upair()
-                elif ctrl_stick_mapping == [0, -1] or cstick_mapping[1] == -1:
+                elif ctrl_stick_mapping[1] == -1 or cstick_mapping[1] == -1:
                     character.dair()
                 if character.direction:
-                    if ctrl_stick_mapping == [1, 0] or cstick_mapping[0] == 1:
+                    if ctrl_stick_mapping[0] == 1 or cstick_mapping[0] == 1:
                         character.fair()
-                    elif ctrl_stick_mapping == [-1, 0] or cstick_mapping[0] == -1:
+                    elif ctrl_stick_mapping[0] == -1 or cstick_mapping[0] == -1:
                         character.bair()
                 elif not character.direction:
-                    if ctrl_stick_mapping == [1, 0] or cstick_mapping[0] == 1:
+                    if ctrl_stick_mapping[0] == 1 or cstick_mapping[0] == 1:
                         character.bair()
-                    elif ctrl_stick_mapping == [-1, 0] or cstick_mapping[0] == -1:
+                    elif ctrl_stick_mapping[0] == -1 or cstick_mapping[0] == -1:
                         character.fair()
             elif controller.get_axis_change(1, 0.25, 0.3) and character.air_speed[1] < 0:
                 character.update_air_speed(character.air_speed[0], -character.attributes['max_vair_speed'])
@@ -180,5 +180,8 @@ def handle(char_control_map: Dict) -> None:
 
         elif character.action_state[0] == 'hitlag' and character.action_state[1] == 2 and \
                 character.action_state[3] is not None:
-            engine.handle_hit(character, character.action_state[3], controller.get_angle(ctrl_stick))
+            if ctrl_stick_mapping != [0, 0]:
+                engine.handle_hit(character, character.action_state[3], controller.get_angle(ctrl_stick))
+            else:
+                engine.handle_hit(character, character.action_state[3], None)
 

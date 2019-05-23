@@ -30,26 +30,29 @@ def hitbox_collision(char_control_map: Dict) -> None:
                     attack_data = character.hitboxes[1][i]
                     other_character.damage += attack_data['damage']
                     other_character.enter_hitlag(int(attack_data['damage'] / 3) + 3, attack_data)
+                    character.enter_hitlag(int(attack_data['damage'] / 3) + 3, None)
 
 
 def handle_hit(character: characters.Character, attack_data: Dict, di: float):
     """
     Handles a hit after hitlag completes, taking in a DI input to adjust direction sent.
     """
-    di = math.degrees(di)
     multiplier = (attack_data['KBG'] / 100) * ((14 * character.damage * (attack_data['damage'] + 2)
                                                 / (character.attributes['weight'] + 100)) + 18) + attack_data['BKB']
     direction = attack_data['direction']
-    max_angles = [angle_converter(direction + 90), angle_converter(direction - 90)]
-    angle_delta = [angle_diff(di, max_angles[0]), angle_diff(di, max_angles[1])]
+    if di is not None:
+        di = math.degrees(di)
+        max_angles = [angle_converter(direction + 90), angle_converter(direction - 90)]
+        angle_delta = [angle_diff(di, max_angles[0]), angle_diff(di, max_angles[1])]
 
-    if angle_delta[0] < angle_delta[1]:
-        influence = angle_converter(direction + (((90 - angle_delta[0]) / 90) * 18))
-    elif angle_delta[0] > angle_delta[1]:
-        influence = angle_converter(direction - (((90 - angle_delta[1]) / 90) * 18))
+        if angle_delta[0] < angle_delta[1]:
+            influence = angle_converter(direction + (((90 - angle_delta[0]) / 90) * 18))
+        elif angle_delta[0] > angle_delta[1]:
+            influence = angle_converter(direction - (((90 - angle_delta[1]) / 90) * 18))
+        else:
+            influence = direction
     else:
-        influence = 0
-
+        influence = direction
     if not character.action_state[0] == 'grounded' or not -180 < direction < 0:
         hitstun = int(multiplier * HITSTUN)
         character.action_state = ['airborne', 0, 'hitstun', hitstun]
