@@ -21,7 +21,7 @@ class Character:
     ecb: A list of a character's edges for interacting with the stage. Its indexes are left, right, top and bottom.
     hurtboxes: A list of pygame rectangles of a character's hurtboxes.
     hitboxes: A list with the first index being a list of a character's active hitboxes and the second index being
-    a dictionary of each hitbox data: 'damage', 'direction', 'kb_growth', 'base_kb'
+    a dictionary of each hitbox data: 'damage', 'direction', 'KBG', 'BKB'
     invincible: A list with the first index being True if a character is invincible and the second index is how many
     frames of invincibility it has left.
     jumped: True if a character has jumped in the air, False if they haven't.
@@ -40,7 +40,11 @@ class Character:
     'airdodge_conversion': How much a character's horizontal air speed is converted into ground speed
     'max_waveland_duration': How long a character can be in the waveland state
 
-
+    HITBOX DATA INDEX MAPPING
+    'damage': The amount of damage a hitbox deals to a character
+    'direction:" An angle between -180 and 180 that determines the direction an attack will send
+    'KBG': Short for knockback growth, which determines how well knockback scales off of damage
+    'BKB': Short for base knockback, which determines how much knockback an attack will always do.
     """
     action_state: List
     air_speed: List
@@ -72,9 +76,13 @@ class Character:
     def get_attr(self) -> Dict:
         return {'action_state': self.action_state, 'air_speed': self.air_speed, 'attributes': self.attributes,
                 'center': self.center, 'direction': self.direction, 'hitboxes': self.hitboxes,
-                'hurtboxes': self.hurtboxes, 'jumped': self.jumped, 'ecb': self.ecb, 'invincible': self.invincible}
+                'hurtboxes': self.hurtboxes, 'jumped': self.jumped, 'ecb': self.ecb, 'invincible': self.invincible,
+                'damage': self.damage}
 
     def update(self) -> None:
+        """
+        Update the character based on their action state.
+        """
         # TODO: Generalize update to handle all action states
         if self.invincible[0]:
             self.invincible[1] -= 1
@@ -112,7 +120,6 @@ class Character:
             if self.action_state[2] == 'hitstun':
                 self.action_state[3] -= 1
                 if self.action_state[3] == 0:
-                    print('done')
                     self.action_state[2] = 'airborne'
                     self.action_state[3] = 0
             elif not self.action_state[2] == 'airborne' and not self.action_state[2] == 'freefall':
@@ -128,16 +135,26 @@ class Character:
                 self.action_state = self.action_state[2]
 
     def update_center(self, x: float, y: float) -> None:
+        """
+        Update the character's center to x and y, ecb, and hitbox. This must be implemented in subclasses of Character
+        because the ecb and hitbox should update dynamically based on action state.
+        """
         raise NotImplementedError
 
     def update_air_speed(self, x: float, y: float) -> None:
+        """
+        Update a character's air speed to x and y and adjust according to max air speeds and action state.
+        """
         self.air_speed = [x, y]
-        if self.air_speed[0] > self.attributes['max_hair_speed']:
+        if abs(self.air_speed[0]) > self.attributes['max_hair_speed'] and not self.action_state[2] == 'hitstun':
             self.air_speed[0] -= self.attributes['hair_acc'] / 4 * numpy.sign(x)
-        if self.air_speed[1] < -self.attributes['max_vair_speed']:
+        if self.air_speed[1] < -self.attributes['max_vair_speed'] and not self.action_state[2] == 'hitstun':
             self.air_speed[1] = -self.attributes['max_vair_speed']
 
     def ground_actionable(self) -> bool:
+        """
+        Return true if a character is on the ground and actionable.
+        """
         if self.action_state[2] == 'grounded':
             if self.action_state[0] == 'waveland' and self.action_state[1] > WAVELAND_ACTIONABLE \
                     or self.action_state[0] == 'grounded':
@@ -146,14 +163,24 @@ class Character:
         return False
 
     def air_actionable(self) -> bool:
+        """
+        Return true if a character is in the air and actionable.
+        """
         if self.action_state[2] == 'airborne':
             return True
         return False
 
     def enter_hitlag(self, frames: int, attack_data: Dict) -> None:
+        """
+        Enters hitlag for 'frames' frames and stores the data of an attack into the action state to be used when hitstun
+        ends and a DI input is recorded
+        """
         self.action_state = ['hitlag', frames, self.action_state, attack_data]
 
     def move(self, tilt) -> None:
+        """
+        Moves a character in the air and on the ground according to character attributes.
+        """
         if self.ground_actionable():
             if self.action_state[0] == 'waveland':
                 self.action_state = ['grounded', 0, 'grounded', 0]
@@ -175,6 +202,10 @@ class Character:
                         self.update_air_speed(set_spd, self.air_speed[1])
 
     def jump(self, released: bool) -> None:
+        """
+        Causes a character to enter jumpsquat animation for JUMPSQUAT_FRAME frames. The character performs a shorthop
+        if released is True, and a fullhop otherwise.
+        """
         if not self.jumped and self.action_state[0] == 'airborne' and self.action_state[2] != 'hitstun':
             self.jumped = True
             self.update_air_speed(self.air_speed[0], self.attributes['fullhop_velocity'])
@@ -192,6 +223,10 @@ class Character:
                 self.action_state = ['airborne', 0, 'airborne', 0]
 
     def airdodge(self, angle: float) -> None:
+        """
+        Causes a character to airdodge at angle 'angle', and then enter a freefall action state after the airdodge
+        has completed.
+        """
         if self.air_actionable() or self.action_state[0] == 'airdodge':
             self.action_state[0] = 'airdodge'
             self.action_state[1] += 1
@@ -206,6 +241,9 @@ class Character:
                 self.action_state = ['airborne', 0, 'freefall', 0]
 
     def auto_wavedash(self, angle: List) -> None:
+        """
+        Automatically inputs an airdodge after JUMPSQUAT_FRAME at angle 'angle'.
+        """
         if self.action_state[2] == 'jumpsquat':
             self.action_state[2] = 'auto_wavedash'
             self.action_state[3] += 1
@@ -248,6 +286,7 @@ class CharOne(Character):
         self.ground_speed = 0
         self.air_speed = [0, 0]
         self.jumped = False
+        self.damage = 0
         self.ecb = [self.center[0] - width / 2, self.center[0] + width / 2,
                     self.center[1] - width, self.center[1] + width * 3]
 
@@ -269,16 +308,19 @@ class CharOne(Character):
                                           self.center[1] + 20, -width, 15)]
 
     def ftilt(self) -> None:
+        """
+        A grounded attack that comes out on frame 7 and ends on frame 16 with 5 frames of endlag.
+        """
         if self.ground_actionable() or self.action_state[2] == 'ftilt':
             self.action_state[2] = 'ftilt'
             self.action_state[3] += 1
             if self.action_state[3] == 7:
                 if self.direction:
                     self.hitboxes = [[pygame.Rect(self.center[0], self.center[1], 80, 30)],
-                                     [{'damage': 10, 'direction': 90, 'KBG': 3, 'BKB': 15}], False]
+                                     [{'damage': 9, 'direction': 45, 'KBG': 100, 'BKB': 5}], False]
                 else:
                     self.hitboxes = [[pygame.Rect(self.center[0], self.center[1] - 50, 30, 80)],
-                                     [{'damage': 10, 'direction': 90, 'KBG': 3, 'BKB': 15}], False]
+                                     [{'damage': 10, 'direction': 45, 'KBG': 100, 'BKB': 5}], False]
             if self.action_state[3] > 15:
                 self.hitboxes = [[], [], False]
             if self.action_state[3] > 20:

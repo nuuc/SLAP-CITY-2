@@ -1,14 +1,23 @@
-import pygame, stages, characters, controller_handler, game_loop, math
+import pygame, stages, characters, math
 from typing import *
+HITSTUN = 0.4
+KB_LAUNCH_CONVERSION = 0.15
+GROUND_KB_CONVERSION = 0.8
 
 
 def run(screen: pygame.Surface, char_control_map: Dict, stage: stages.Stage) -> None:
+    """
+    Handles stage interactions, draws the screen, and then detects hitbox collision.
+    """
     stage.handle_stage(char_control_map)
     developer_draw_all(screen, char_control_map, stage)
     hitbox_collision(char_control_map)
 
 
 def hitbox_collision(char_control_map: Dict) -> None:
+    """
+    Detects collision between a character's hitbox and another character's hurtbox.
+    """
     for character in char_control_map:
         if not character.hitboxes[2]:
             copy = char_control_map.copy()
@@ -24,20 +33,33 @@ def hitbox_collision(char_control_map: Dict) -> None:
 
 
 def handle_hit(character: characters.Character, attack_data: Dict, di: float):
-    multiplier = attack_data['KBG'] * ((14 * character.damage * (attack_data['damage'] + 2)
-                                        / (character.attributes['weight'] + 100)) + 18) + attack_data['BKB']
+    """
+    Handles a hit after hitlag completes, taking in a DI input to adjust direction sent.
+    """
+    di = math.degrees(di)
+    multiplier = (attack_data['KBG'] / 100) * ((14 * character.damage * (attack_data['damage'] + 2)
+                                                / (character.attributes['weight'] + 100)) + 18) + attack_data['BKB']
     direction = attack_data['direction']
     max_angles = [angle_converter(direction + 90), angle_converter(direction - 90)]
-    delt_angle = [angle_diff(di, max_angles[0]), angle_diff(di, max_angles[1])]
-    if delt_angle[0] < delt_angle[1]:
-        influence = angle_converter(direction + (((90 - delt_angle[0]) / 90) * 18))
-    elif abs(delt_angle[0]) > abs(delt_angle[1]):
-        influence = angle_converter(direction - (((90 - delt_angle[1]) / 90) * 18))
+    angle_delta = [angle_diff(di, max_angles[0]), angle_diff(di, max_angles[1])]
+
+    if angle_delta[0] < angle_delta[1]:
+        influence = angle_converter(direction + (((90 - angle_delta[0]) / 90) * 18))
+    elif angle_delta[0] > angle_delta[1]:
+        influence = angle_converter(direction - (((90 - angle_delta[1]) / 90) * 18))
     else:
         influence = 0
-    character.action_state = ['airborne', 0, 'hitstun', int(multiplier * 0.1)]
-    character.air_speed = [math.cos(math.radians(influence)) * multiplier * 0.15,
-                            math.sin(math.radians(influence)) * multiplier * 0.15]
+
+    if not character.action_state[0] == 'grounded' or not -180 < direction < 0:
+        hitstun = int(multiplier * HITSTUN)
+        character.action_state = ['airborne', 0, 'hitstun', hitstun]
+        character.update_air_speed(math.cos(math.radians(influence)) * multiplier * KB_LAUNCH_CONVERSION,
+                               math.sin(math.radians(influence)) * multiplier * KB_LAUNCH_CONVERSION)
+    else:
+        hitstun = int(multiplier * GROUND_KB_CONVERSION * HITSTUN)
+        character.action_state = ['airborne', 0, 'hitstun', hitstun]
+        character.update_air_speed(math.cos(math.radians(influence)) * multiplier * KB_LAUNCH_CONVERSION,
+                               -math.sin(math.radians(influence)) * multiplier * KB_LAUNCH_CONVERSION)
 
 
 def angle_converter(angle: float) -> float:
@@ -67,6 +89,7 @@ def developer_draw_all(screen: pygame.Surface, char_control_map: Dict, stage: st
     draw_lines(stage.floor, screen, (0, 255, 0), True)
     draw_lines(stage.walls, screen, (0, 0, 255), False)
     pygame.display.update()
+
 
 def draw_boxes(obj: List[pygame.Rect], screen: pygame.Surface, color: Tuple[int, int, int]) -> None:
     for thing in obj:

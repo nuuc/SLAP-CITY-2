@@ -31,6 +31,9 @@ class Stage:
         raise NotImplementedError
 
     def handle_stage(self, char_control_map: Dict) -> None:
+        """
+        Handles stage interactions.
+        """
         for character in char_control_map:
             char_input = controller_handler.controller_input[char_control_map[character]]
             prev_ecb = character.get_attr()['ecb']
@@ -52,6 +55,7 @@ class Stage:
                             character.invincible = [False, 0]
                             character.update_air_speed(0, 0)
                             character.jumped = False
+
                         elif not char_input.get_axis(1) <= -0.3 or not floor[3]:
                             character.update_air_speed(0, 0)
                             character.jumped = False
@@ -79,6 +83,7 @@ class Stage:
                         character.update_center(x_level + (center[0] - ecb[0]), center[1])
                         character.update_air_speed(0, character.air_speed[1])
                         character.ground_speed = 0
+
 
 class Battlefield(Stage):
 

@@ -1,4 +1,4 @@
-import pygame, controller_handler, characters, engine, stages, random
+import pygame, controller_handler, characters, engine, stages
 
 tony = characters.CharOne([500, 200], False, ['airborne', 0, 'airborne', 0])
 ben = characters.CharOne([600, 200], False, ['airborne', 0, 'airborne', 0])
