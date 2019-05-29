@@ -1,8 +1,11 @@
-import pygame, stages, characters, math
+import pygame, stages, characters, math, game_loop, misc_functions, numpy, controller_handler
 from typing import *
+pygame.font.init()
+font = pygame.font.SysFont('Comic Sans MS', 30)
 HITSTUN = 0.4
 KB_LAUNCH_CONVERSION = 0.15
 GROUND_KB_CONVERSION = 0.8
+MAX_DI = 30
 
 
 def run(screen: pygame.Surface, char_control_map: Dict, stage: stages.Stage) -> None:
@@ -19,25 +22,53 @@ def hitbox_collision(char_control_map: Dict) -> None:
     Detects collision between a character's hitbox and another character's hurtbox.
     """
     for character in char_control_map:
-        if not character.hitboxes[2]:
+        if not character.hitboxes['regular'][2]:
             copy = char_control_map.copy()
             del copy[character]
             other_character = list(copy.keys())[0]
-            for i in range(len(character.hitboxes[0])):
-                hitbox = character.hitboxes[0][i]
-                if not hitbox.collidelist(other_character.hurtboxes) == -1:
-                    character.hitboxes[2] = True
-                    attack_data = character.hitboxes[1][i]
-                    other_character.damage += attack_data['damage']
-                    other_character.enter_hitlag(int(attack_data['damage'] / 3) + 3, attack_data)
-                    character.enter_hitlag(int(attack_data['damage'] / 3) + 3, None)
+            if not other_character.invincible:
+                for i in range(len(character.hitboxes['regular'][0])):
+                    hitbox = character.hitboxes['regular'][0][i]
+                    if misc_functions.intersect_list(hitbox, other_character.hurtboxes) \
+                            and not character.hitboxes['regular'][2]:
+                        character.hitboxes['regular'][2] = True
+                        attack_data = character.hitboxes['regular'][1][i]
+                        damage = attack_data['damage']
+                        if other_character.action_state[0] != 'shielded':
+                            other_character.damage += damage
+                            other_character.enter_hitlag(int(damage / 3) + 3, attack_data)
+                            character.enter_hitlag(int(damage / 3) + 3, None)
+                        else:
+                            other_character.misc_data['shield_health'] -= damage
+                            other_character.action_state = ['shielded', 0, 'shieldstun', int((damage + 4.45) * 0.447)]
+                            other_character.ground_speed = (2 * other_character.attributes['traction'] * damage
+                                                            + (-27 * other_character.attributes['traction'] + 3.2))\
+                                                           * numpy.sign(other_character.center[0] - character.center[0])
+                            other_character.enter_hitlag(int(damage / 3) + 3, None)
+                            character.enter_hitlag(int(damage / 3) + 3, None)
+                for projectile in character.hitboxes['projectile']:
+                    if misc_functions.intersect_list(projectile[0], other_character.hurtboxes):
+                        projectile[3] = False
+                        attack_data = projectile[1]
+                        damage = projectile[1]['damage']
+                        if other_character.action_state[0] != 'shielded':
+                            other_character.damage += damage
+                            other_character.enter_hitlag(int(damage / 3) + 3, attack_data)
+                        else:
+                            other_character.misc_data['shield_health'] -= damage
+                            other_character.action_state = ['shielded', 0, 'shieldstun', int((damage + 4.45) * 0.447)]
+                            other_character.ground_speed = (2 * other_character.attributes['traction'] * damage
+                                                            + (-27 * other_character.attributes['traction'] + 3.2)) \
+                                                           * numpy.sign(other_character.center[0] - character.center[0])
+                            other_character.enter_hitlag(int(damage / 3) + 3, None)
+                        character.hitboxes['projectile'].remove(projectile)
 
 
-def handle_hit(character: characters.Character, attack_data: Dict, di: float):
+def handle_hit(character: characters.Character, attack_data: Dict, di=None) -> None:
     """
-    Handles a hit after hitlag completes, taking in a DI input to adjust direction sent.
+    Handles a hit on the last frame of hitlag, taking in a DI input to adjust direction sent.
     """
-    multiplier = (attack_data['KBG'] / 100) * ((14 * character.damage * (attack_data['damage'] + 2)
+    KB = (attack_data['KBG'] / 100) * ((14 * character.damage * (attack_data['damage'] + 2)
                                                 / (character.attributes['weight'] + 100)) + 18) + attack_data['BKB']
     direction = attack_data['direction']
     if di is not None:
@@ -46,23 +77,24 @@ def handle_hit(character: characters.Character, attack_data: Dict, di: float):
         angle_delta = [angle_diff(di, max_angles[0]), angle_diff(di, max_angles[1])]
 
         if angle_delta[0] < angle_delta[1]:
-            influence = angle_converter(direction + (((90 - angle_delta[0]) / 90) * 18))
+            influence = angle_converter(direction + (((90 - angle_delta[0]) / 90) * MAX_DI))
         elif angle_delta[0] > angle_delta[1]:
-            influence = angle_converter(direction - (((90 - angle_delta[1]) / 90) * 18))
+            influence = angle_converter(direction - (((90 - angle_delta[1]) / 90) * MAX_DI))
         else:
             influence = direction
     else:
         influence = direction
-    if not character.action_state[0] == 'grounded' or not -180 < direction < 0:
-        hitstun = int(multiplier * HITSTUN)
-        character.action_state = ['airborne', 0, 'hitstun', hitstun]
-        character.update_air_speed(math.cos(math.radians(influence)) * multiplier * KB_LAUNCH_CONVERSION,
-                               math.sin(math.radians(influence)) * multiplier * KB_LAUNCH_CONVERSION)
+
+    if character.misc_data['action_state'][0] == 'grounded' and -180 < direction < 0:
+        hitstun = int(KB * HITSTUN)
+        character.misc_data.update({'action_state': ['hitstun', hitstun, 'hitstun', 0], 'KB': KB})
+        character.update_air_speed(math.cos(math.radians(influence)) * KB * KB_LAUNCH_CONVERSION,
+                                -math.sin(math.radians(influence)) * KB * KB_LAUNCH_CONVERSION * GROUND_KB_CONVERSION)
     else:
-        hitstun = int(multiplier * GROUND_KB_CONVERSION * HITSTUN)
-        character.action_state = ['airborne', 0, 'hitstun', hitstun]
-        character.update_air_speed(math.cos(math.radians(influence)) * multiplier * KB_LAUNCH_CONVERSION,
-                               -math.sin(math.radians(influence)) * multiplier * KB_LAUNCH_CONVERSION)
+        hitstun = int(KB * HITSTUN)
+        character.misc_data.update({'action_state': ['hitstun', hitstun, 'hitstun', 0], 'KB': KB})
+        character.update_air_speed(math.cos(math.radians(influence)) * KB * KB_LAUNCH_CONVERSION,
+                                   math.sin(math.radians(influence)) * KB * KB_LAUNCH_CONVERSION)
 
 
 def angle_converter(angle: float) -> float:
@@ -83,12 +115,23 @@ def angle_diff(angle_one: float, angle_two: float) -> float:
 def developer_draw_all(screen: pygame.Surface, char_control_map: Dict, stage: stages.Stage) -> None:
     screen.fill((255, 255, 255))
     for character in char_control_map:
-        if character.invincible[0]:
-            draw_boxes(character.hurtboxes, screen, (0, 0, 255))
+        damage = font.render(str(character.damage), False, (0, 0, 0))
+        shield_health = font.render(str(int(character.misc_data['shield_health'])), False, (0, 0, 0))
+        if character.invincible:
+            draw_poly(character.hurtboxes, screen, (0, 0, 255))
+        elif character.action_state[0] == 'waveland':
+            draw_poly(character.hurtboxes, screen, (0, 255, 255))
         else:
-            draw_boxes(character.hurtboxes, screen, (0, 0, 0))
-        draw_boxes(character.hitboxes[0], screen, (255, 0, 0))
+            draw_poly(character.hurtboxes, screen, (0, 0, 0))
+        draw_poly(character.hitboxes['regular'][0], screen, (255, 0, 0))
         draw_ecb(screen, character)
+        if character.action_state[0] == 'shielded':
+            draw_shield(screen, character)
+        for projectile in character.hitboxes['projectile']:
+            pygame.draw.polygon(screen, (255, 0, 0), list(projectile[0].exterior.coords))
+        screen.blit(damage, (300 + 100 * char_control_map[character], 650))
+    fps = font.render(str(round(game_loop.clock.get_fps())), False, (128, 128, 128))
+    screen.blit(fps, (0, 0))
     draw_lines(stage.floor, screen, (0, 255, 0), True)
     draw_lines(stage.walls, screen, (0, 0, 255), False)
     pygame.display.update()
@@ -97,6 +140,11 @@ def developer_draw_all(screen: pygame.Surface, char_control_map: Dict, stage: st
 def draw_boxes(obj: List[pygame.Rect], screen: pygame.Surface, color: Tuple[int, int, int]) -> None:
     for thing in obj:
         pygame.draw.rect(screen, color, thing)
+
+
+def draw_poly(obj: List, screen: pygame.Surface, color: Tuple) -> None:
+    for thing in obj:
+        pygame.draw.polygon(screen, color, thing.exterior.coords)
 
 
 def draw_lines(obj: List, screen: pygame.Surface, color: Tuple[int, int, int], orientation: bool) -> None:
@@ -111,7 +159,8 @@ def draw_lines(obj: List, screen: pygame.Surface, color: Tuple[int, int, int], o
 
 
 def draw_ecb(screen: pygame.Surface, character: characters.Character) -> None:
-    x = character.center[0]
-    y = character.center[1]
-    pygame.draw.line(screen, (128, 128, 128), (x, character.ecb[2]), (x, character.ecb[3]))
-    pygame.draw.line(screen, (128, 128, 128), (character.ecb[0], y), (character.ecb[1], y))
+    pygame.draw.polygon(screen, (128, 128, 128), character.ecb)
+
+
+def draw_shield(screen: pygame.Surface, character: characters.Character) -> None:
+    pygame.draw.circle(screen, (255, 128, 255), [int(i) for i in character.ecb[2]], int(character.misc_data['shield_health'] * 50 / 86))
