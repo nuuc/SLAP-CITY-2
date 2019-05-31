@@ -68,6 +68,7 @@ def handle_hit(character: characters.Character, attack_data: Dict, di=None) -> N
     """
     Handles a hit on the last frame of hitlag, taking in a DI input to adjust direction sent.
     """
+    state = character.misc_data['action_state']
     KB = (attack_data['KBG'] / 100) * ((14 * character.damage * (attack_data['damage'] + 2)
                                                 / (character.attributes['weight'] + 100)) + 18) + attack_data['BKB']
     direction = attack_data['direction']
@@ -85,7 +86,7 @@ def handle_hit(character: characters.Character, attack_data: Dict, di=None) -> N
     else:
         influence = direction
 
-    if character.misc_data['action_state'][0] == 'grounded' and -180 < direction < 0:
+    if (state[0] == 'grounded' or state[0] == 'knockdown') and -180 < direction < 0:
         hitstun = int(KB * HITSTUN)
         character.misc_data.update({'action_state': ['hitstun', hitstun, 'hitstun', 0], 'KB': KB})
         character.update_air_speed(math.cos(math.radians(influence)) * KB * KB_LAUNCH_CONVERSION,

@@ -89,9 +89,9 @@ class Character:
         """
         # TODO: Generalize update to handle all action states
 
-        if self.misc_data['invincibility'] > 0:
+        if self.misc_data['invincibility'] >= 0:
             self.misc_data['invincibility'] -= 1
-            if self.misc_data['invincibility'] == 0:
+            if self.misc_data['invincibility'] <= 0:
                 self.invincible = False
             else:
                 self.invincible = True
@@ -197,6 +197,8 @@ class Character:
             if self.action_state[1] == 0:
                 self.action_state = ['ledge_wait', 30, 'ledge_wait', 0]
                 self.misc_data['invincibility'] = 30
+        elif self.action_state[0] == 'ledge_action':
+            getattr(self, self.action_state[2])()
 
         elif self.action_state[0] == 'hitstun':
             self.update_center(self.center[0] + self.air_speed[0], self.center[1] - self.air_speed[1])
@@ -318,6 +320,7 @@ class Character:
                 self.direction = True
             elif tilt < 0:
                 self.direction = False
+
     def drift(self, tilt) -> None:
         if (self.action_state[0] == 'airborne' and self.action_state[2] != 'hitstun') \
                 or self.action_state[0] == 'freefall':
@@ -369,7 +372,7 @@ class Character:
         elif self.action_state[0] == 'airdodge':
             self.action_state[1] += 1
             if self.action_state[1] == 3:
-                self.invincible = True
+                self.misc_data.update({'invincibility': 27})
             elif self.action_state[1] < 28:
                 multiplier = (605535 / (self.action_state[1] + 29.65) ** 3.24) - 0.25
                 if angle is not None:
@@ -377,7 +380,6 @@ class Character:
                 else:
                     self.update_air_speed(0, 0)
             elif self.action_state[1] >= 29:
-                self.invincible = False
                 self.action_state = ['freefall', 0, 'freefall', 0]
 
 
@@ -411,6 +413,9 @@ class Character:
         raise NotImplementedError
 
     def dair(self) -> None:
+        raise NotImplementedError
+
+    def ledge_getup(self) -> None:
         raise NotImplementedError
 
 
@@ -448,6 +453,10 @@ class CharOne(Character):
                 self.ecb = in_relation(self.center, [(0, 10), (-15, -30), (0, -60), (15, -30)])
             else:
                 self.ecb = in_relation(self.center, [(0, 0), (-15, -30), (0, -60), (15, -30)])
+        elif self.action_state[0] == 'ledge_grab' or self.action_state[0] == 'ledge_wait':
+            self.ecb = in_relation(self.center, [(0, 0), (-8, -45), (0, -90), (8, -45)])
+        elif self.action_state[0] == 'ledge_getup':
+            self.ecb = in_relation(self.center, [(0, 0), (-8, -45), (0, -90), (8, -45)])
         elif self.action_state[0] == 'knockdown':
             if self.action_state[2] == 'kd_bounce':
                 self.ecb = in_relation(self.center, [(0, 0), (-15, -30), (0, -90), (15, -30)])
@@ -603,3 +612,22 @@ class CharOne(Character):
                                                     self.direction, False])
             if self.action_state[3] == 30:
                 self.action_state = self.misc_data['prev_action_state']
+
+    def ledge_getup(self) -> None:
+        if self.action_state[0] == 'ledge_wait':
+            self.action_state = ['ledge_action', 0, 'ledge_getup', 0]
+        elif self.action_state[2] == 'ledge_getup':
+            self.action_state[3] += 1
+            if self.action_state[3] <= 9:
+                self.update_ecb()
+                self.update_center(self.center[0], self.center[1] - 10)
+            elif self.action_state[3] <= 15:
+                if self.direction:
+                    self.update_center(self.center[0] + 5, self.center[1])
+                else:
+                    self.update_center(self.center[0] - 5, self.center[1])
+            elif self.action_state[3] == 24:
+                self.action_state = ['grounded', 0, 'grounded', 0]
+
+
+

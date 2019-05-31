@@ -154,7 +154,7 @@ def handle(char_control_map: Dict) -> None:
             character.damage = 0
             character.update_air_speed(0, 0)
         if controller.get_button(13):
-            print(character.action_state, character.center, character.ecb)
+            print(character.action_state, character.center, character.ecb, character.invincible, character.misc_data['invincibility'])
 
         if state[0] == 'grounded' or state[0] == 'waveland':
 
@@ -282,9 +282,15 @@ def handle(char_control_map: Dict) -> None:
             if ctrl_stick_mapping[1] == -1:
                 character.action_state = ['airborne', 0, 'airborne', 0]
                 character.update_air_speed(0, -character.attributes['max_vair_speed'])
-            elif ctrl_stick_mapping[0] == -1 and character.direction:
-                character.action_state = ['airborne', 0, 'airborne', 0]
-                character.update_air_speed(0, 0)
-            elif ctrl_stick_mapping[0] == 1 and not character.direction:
-                character.action_state = ['airborne', 0, 'airborne', 0]
-                character.update_air_speed(0, 0)
+            elif ctrl_stick_mapping[0] == -1:
+                if character.direction:
+                    character.action_state = ['airborne', 0, 'airborne', 0]
+                    character.update_air_speed(0, 0)
+                else:
+                    character.ledge_getup()
+            elif ctrl_stick_mapping[0] == 1:
+                if not character.direction:
+                    character.action_state = ['airborne', 0, 'airborne', 0]
+                    character.update_air_speed(0, 0)
+                else:
+                    character.ledge_getup()

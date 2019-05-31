@@ -51,7 +51,7 @@ class Stage:
                         if character.action_state[0] == 'airdodge':
                             character.ground_speed = character.air_speed[0]
                             character.action_state = ['waveland', 0, 'grounded', 0]
-                            character.invincible = False
+                            character.misc_data['invincibility'] = 0
                             character.update_ecb()
                             character.update_center(center[0], y_level + (center[1] - character.ecb[0][1]))
                             character.update_air_speed(0, 0)
@@ -115,12 +115,14 @@ class Stage:
                                 character.update_ecb()
                                 character.update_center(ledges[0] - (character.ecb[3][0] - character.center[0]),
                                                         ledges[1] + (character.center[1] - character.ecb[2][1]))
+                                character.misc_data.update({'on_ledge': ledges})
                         else:
                             if center[0] > ledges[0] > center[0] - character.attributes['edge_link'][0]:
                                 character.action_state = ['ledge_grab', 7, 'ledge_grab', 0]
                                 character.update_ecb()
                                 character.update_center(ledges[0] + (character.center[0] - character.ecb[1][0]),
                                                         ledges[1] + (character.center[1] - character.ecb[2][1]))
+                                character.misc_data.update({'on_ledge': ledges})
 
 
 class Battlefield(Stage):
