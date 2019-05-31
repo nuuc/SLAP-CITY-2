@@ -154,26 +154,26 @@ def handle(char_control_map: Dict) -> None:
             character.damage = 0
             character.update_air_speed(0, 0)
         if controller.get_button(13):
-            print(character.action_state)
+            print(character.action_state, character.center, character.ecb)
 
         if state[0] == 'grounded' or state[0] == 'waveland':
 
-            if controller.get_axis(4) >= 0:
-                character.shield()
-
-            elif ctrl_stick_mapping[0] != 0 and controller.get_button_change(1):
-                character.ftilt()
-
-            elif controller.get_button(2):
-                character.neutral_special()
-
-            elif controller.get_button_change(3):
-                character.jump(False)
-
-            elif controller.get_button_change(0):
-                character.jump(True)
-
             if state[2] == 'grounded' or state[2] == 'dash' or state[2] == 'walk':
+                if controller.get_axis(4) >= 0:
+                    character.shield()
+
+                elif ctrl_stick_mapping[0] != 0 and controller.get_button_change(1):
+                    character.ftilt()
+
+                elif controller.get_button(2):
+                    character.neutral_special()
+
+                elif controller.get_button_change(3):
+                    character.jump(False)
+
+                elif controller.get_button_change(0):
+                    character.jump(True)
+
                 if ctrl_stick_mapping[0] != 0 and controller.get_button(4):
                     if ctrl_stick_mapping[0] == 1:
                         character.dash(True)
@@ -194,6 +194,12 @@ def handle(char_control_map: Dict) -> None:
                     character.ground_speed = character.attributes['max_gr_speed'] / 3
                 elif ctrl_stick_mapping[0] == -1:
                     character.ground_speed = -character.attributes['max_gr_speed'] / 3
+
+            elif state[2] == 'shield_off':
+                if controller.get_button_change(3):
+                    character.jump(False)
+                elif controller.get_button_change(0):
+                    character.jump(True)
 
         elif state[0] == 'airborne':
             if ctrl_stick_mapping[0] != 0:
@@ -245,8 +251,13 @@ def handle(char_control_map: Dict) -> None:
             elif controller.get_button(2):
                 character.neutral_special()
 
-            elif controller.get_button_change(3):
-                character.jump(True)
+            elif controller.get_button_change(3) or controller.get_button_change(0):
+                character.jump(False)
+                if ctrl_stick_mapping[0] != 0:
+                    if ctrl_stick_mapping[0] == 1:
+                        character.update_air_speed(character.attributes['max_hair_speed'], character.air_speed[1])
+                    else:
+                        character.update_air_speed(-character.attributes['max_hair_speed'], character.air_speed[1])
 
         elif state[0] == 'shielded':
             if controller.get_button_change(3):
@@ -273,7 +284,7 @@ def handle(char_control_map: Dict) -> None:
                 character.update_air_speed(0, -character.attributes['max_vair_speed'])
             elif ctrl_stick_mapping[0] == -1 and character.direction:
                 character.action_state = ['airborne', 0, 'airborne', 0]
-                character.update_air_speed(-character.attributes['max_hair_speed'], 0)
+                character.update_air_speed(0, 0)
             elif ctrl_stick_mapping[0] == 1 and not character.direction:
                 character.action_state = ['airborne', 0, 'airborne', 0]
-                character.update_air_speed(character.attributes['max_hair_speed'], 0)
+                character.update_air_speed(0, 0)

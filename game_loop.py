@@ -2,7 +2,7 @@ import pygame, controller_handler, characters, engine, stages
 font = pygame.font.SysFont('Comic Sans MS', 30)
 tony = characters.CharOne([500, 200], False, ['airborne', 0, 'airborne', 0])
 ben = characters.CharOne([600, 200], False, ['airborne', 0, 'airborne', 0])
-char_control_map = {tony: 1, ben: 2}
+char_control_map = {tony: 1, ben: 0}
 stage = stages.Battlefield()
 clock = pygame.time.Clock()
 

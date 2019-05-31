@@ -59,10 +59,9 @@ class Stage:
 
                         elif (character.action_state[2] == 'hitstun' and character.misc_data['KB'] >= 80) \
                                 or character.action_state[2] == 'tumble':
-                            character.update_air_speed(0, 0)
                             character.jumped = False
-                            character.action_state = ['knockdown', 0, 'knockdown', 0]
-                            character.update_air_speed(0, 0)
+                            character.action_state = ['knockdown', 0, 'kd_bounce', 25]
+                            character.update_air_speed(character.air_speed[0]*0.5, 0)
                             character.update_ecb()
                             character.update_center(center[0], y_level + (center[1] - character.ecb[0][1]))
 
@@ -78,24 +77,27 @@ class Stage:
 
                     elif char_input.get_axis_change(1, 0.25, 0.3) and char_input.axis_list[0][1] < 0 \
                             and ecb[0][1] == y_level and floor[3]:
+                        character.action_state = ['airborne', 0, 'airborne', 0]
+                        character.update_ecb()
                         character.update_center(center[0], center[1] + 1)
                         character.update_air_speed(0, -character.attributes['max_vair_speed'])
-                        character.action_state = ['airborne', 0, 'airborne', 0]
 
                 elif in_bound([prev_ecb[1][0], prev_ecb[3][0]], x_bounds) and ecb[0][1] == y_level:
-                    character.update_air_speed(character.ground_speed, 0)
                     character.action_state = ['airborne', 0, 'airborne', 0]
+                    character.update_air_speed(character.ground_speed, 0)
 
             for wall in self.walls:
                 x_level = wall[2]
                 y_bounds = [wall[0], wall[1]]
-                if in_bound([ecb[2][1], ecb[0][1]], y_bounds):
+                if in_bound([prev_ecb[2][1], prev_ecb[0][1]], y_bounds):
                     if prev_ecb[3][0] <= x_level <= ecb[3][0]:
+                        character.update_ecb()
                         character.update_center(x_level + (center[0] - ecb[3][0]), center[1])
                         character.update_air_speed(0, character.air_speed[1])
                         character.ground_speed = 0
 
                     elif ecb[1][0] <= x_level <= prev_ecb[1][0]:
+                        character.update_ecb()
                         character.update_center(x_level - (center[0] - ecb[3][0]), center[1])
                         character.update_air_speed(0, character.air_speed[1])
                         character.ground_speed = 0

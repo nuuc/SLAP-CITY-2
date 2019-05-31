@@ -4,7 +4,7 @@ from shapely.geometry import *
 from misc_functions import *
 from shapely import affinity
 
-JUMPSQUAT_FRAME = 3
+JUMPSQUAT_FRAME = 4
 WAVELAND_ACTIONABLE = 10
 
 
@@ -138,7 +138,7 @@ class Character:
                 self.update_center(self.center[0] + self.ground_speed, self.center[1])
             elif self.action_state[2] == 'jumpsquat':
                 self.update_center(self.center[0] +
-                    directional_incrementer(self.ground_speed, -self.attributes['traction'], 0), self.center[1])
+                    directional_incrementer(self.ground_speed, -self.attributes['traction'] * 2, 0), self.center[1])
                 self.jump(self.action_state[4])
             elif self.action_state[2] == 'auto_wavedash':
                 self.auto_wavedash(self.misc_data['angle'])
@@ -215,7 +215,17 @@ class Character:
                 self.action_state = self.misc_data['action_state']
 
         elif self.action_state[0] == 'knockdown':
-            pass
+            if self.action_state[2] == 'kd_bounce':
+                self.update_air_speed(directional_incrementer(self.air_speed[0], -self.attributes['air_friction'], 0), 0)
+                self.update_center(self.center[0] + self.air_speed[0], self.center[1])
+                self.action_state[3] -= 1
+                if self.action_state[3] == 0:
+                    self.action_state = ['knockdown', 0, 'kd_wait', 0]
+            elif self.action_state[2] == 'kd_wait':
+                self.update_ecb()
+
+    def character_update(self) -> None:
+        raise NotImplementedError
 
     def update_ecb(self) -> None:
         raise NotImplementedError
@@ -303,12 +313,11 @@ class Character:
             else:
                 if self.action_state[0] != 'waveland':
                     self.ground_speed = 0
+                    self.action_state = ['grounded', 0, 'grounded', 0]
             if tilt > 0:
                 self.direction = True
             elif tilt < 0:
                 self.direction = False
-
-
     def drift(self, tilt) -> None:
         if (self.action_state[0] == 'airborne' and self.action_state[2] != 'hitstun') \
                 or self.action_state[0] == 'freefall':
@@ -328,12 +337,12 @@ class Character:
         if not self.jumped and self.action_state[0] == 'airborne' and self.action_state[2] != 'hitstun':
             self.jumped = True
             self.update_air_speed(self.air_speed[0], self.attributes['fullhop_velocity'])
-        elif self.ground_actionable() or self.action_state[0] == 'shielded':
+        elif self.ground_actionable() or self.action_state[0] == 'shielded' or self.action_state[2] == 'shield_off':
             self.action_state[0] = 'grounded'
             self.action_state[1] = 0
             self.action_state.insert(4, released)
             self.action_state[2] = 'jumpsquat'
-            self.action_state[3] = 0
+            self.action_state[3] = 1
         elif self.action_state[2] == 'jumpsquat':
             self.action_state[3] += 1
             if self.action_state[3] > JUMPSQUAT_FRAME:
@@ -424,36 +433,35 @@ class CharOne(Character):
 
     def update_ecb(self) -> None:
         if self.action_state[0] == 'grounded' or self.action_state[0] == 'waveland':
-            self.ecb = [(self.center[0], self.center[1]), (self.center[0] - 15, self.center[1] - 30),
-                        (self.center[0], self.center[1] - 60), (self.center[0] + 15, self.center[1] - 30)]
+            self.ecb = in_relation(self.center, [(0, 0), (-15, -30), (0, -60), (15, -30)])
         elif self.action_state[0] == 'airborne':
             if 5 < self.air_speed[1]:
-                self.ecb = [(self.center[0], self.center[1] + 10), (self.center[0] - 15, self.center[1] - 30),
-                            (self.center[0], self.center[1] - 70), (self.center[0] + 15, self.center[1] - 30)]
+                self.ecb = in_relation(self.center, [(0, 10), (-15, -30), (0, -70), (15, -30)])
 
             elif -5 <= self.air_speed[1] <= 5:
-                self.ecb = [(self.center[0], self.center[1] + self.air_speed[1] * 2),
-                            (self.center[0] - 15, self.center[1] - 30),
-                            (self.center[0], self.center[1] - 60 - self.air_speed[1] * 2),
-                            (self.center[0] + 15, self.center[1] - 30)]
+                self.ecb = in_relation(self.center, [(0, self.air_speed[1] * 2), (-15, -30),
+                           (0, -60 - self.air_speed[1] * 2), (15, -30)])
             else:
-                self.ecb = [(self.center[0], self.center[1] - 10), (self.center[0] - 15, self.center[1] - 30),
-                            (self.center[0], self.center[1] - 50), (self.center[0] + 15, self.center[1] - 30)]
+                self.ecb = in_relation(self.center, [(0, -10), (-15, -30), (0, -50), (15, -30)])
         elif self.action_state[0] == 'airdodge':
             if self.action_state[1] <= 3:
-                self.ecb = [(self.center[0], self.center[1] + 10), (self.center[0] - 15, self.center[1] - 30),
-                            (self.center[0], self.center[1] - 60), (self.center[0] + 15, self.center[1] - 30)]
+                self.ecb = in_relation(self.center, [(0, 10), (-15, -30), (0, -60), (15, -30)])
             else:
-                self.ecb = [(self.center[0], self.center[1]), (self.center[0] - 15, self.center[1] - 30),
-                            (self.center[0], self.center[1] - 60), (self.center[0] + 15, self.center[1] - 30)]
+                self.ecb = in_relation(self.center, [(0, 0), (-15, -30), (0, -60), (15, -30)])
+        elif self.action_state[0] == 'knockdown':
+            if self.action_state[2] == 'kd_bounce':
+                self.ecb = in_relation(self.center, [(0, 0), (-15, -30), (0, -90), (15, -30)])
+            elif self.action_state[2] == 'kd_wait':
+                self.ecb = in_relation(self.center, [(0, 0), (-25, -15), (0, -30), (25, -15)])
         else:
-            self.ecb = [(self.center[0], self.center[1]), (self.center[0] - 15, self.center[1] - 30),
-                        (self.center[0], self.center[1] - 60), (self.center[0] + 15, self.center[1] - 30)]
+            self.ecb = in_relation(self.center, [(0, 0), (-15, -30), (0, -60), (15, -30)])
 
     def update_center(self, x: float, y: float) -> None:
         self.center = [x, y]
         self.update_ecb()
-        self.hurtboxes = [Polygon(in_relation(self.center, [(-15, -90), (15, -90), (15, 0), (-15, 0)]))]
+        self.hurtboxes = [Polygon(in_relation(self.center, [(-15, -90), (15, -90), (15, 0), (-15, 0)])),
+                          x_reflect(Polygon(in_relation(self.center, [(15, -15), (30, -15), (30, -30), (15, -30)])),
+                                    self.center[0], self.direction)]
 
     def ftilt(self) -> None:
         """
@@ -519,6 +527,30 @@ class CharOne(Character):
             id1 = hitbox_maker(self.center, hitbox1, self.direction, 8, -45, 70, 30)
             self.misc_data.update({'id0': id0, 'id1': id1, 'hitbox0': hitbox0, 'hitbox1': hitbox1})
         elif self.action_state[2] == 'bair':
+            self.action_state[3] += 1
+            if 4 <= self.action_state[3] <= 7:
+                rotation_axis = [self.center[0], self.center[1] - 45]
+                self.hitboxes['regular'][0] = [hitbox_rotate(rotation_axis, hitbox_updater(self.center,
+                        self.misc_data['hitbox0'], self.direction), self.direction, (self.action_state[3] - 7) * 20),
+                                               hitbox_rotate(rotation_axis, hitbox_updater(self.center,
+                        self.misc_data['hitbox1'], self.direction), self.direction, (self.action_state[3] - 7) * 20)]
+                self.hitboxes['regular'][1] = [self.misc_data['id0'][1], self.misc_data['id1'][1]]
+            elif self.action_state[3] == 8:
+                self.hitboxes['regular'] = [[], [], False]
+            elif self.action_state[3] == 33:
+                self.action_state[2] = 'airborne'
+                self.action_state[3] = 0
+
+    def upair(self) -> None:
+        if self.air_actionable():
+            self.action_state[2] = 'upair'
+            self.action_state[3] = 1
+            hitbox0 = [(-15, -60), (-15, -30), (-30, -30), (-30, -60)]
+            hitbox1 = [(-50, -60), (-50, -30), (-110, -30), (-110, -60)]
+            id0 = hitbox_maker(self.center, hitbox0, self.direction, 12, -45, 70, 60)
+            id1 = hitbox_maker(self.center, hitbox1, self.direction, 8, -45, 70, 30)
+            self.misc_data.update({'id0': id0, 'id1': id1, 'hitbox0': hitbox0, 'hitbox1': hitbox1})
+        elif self.action_state[2] == 'upair':
             self.action_state[3] += 1
             if 4 <= self.action_state[3] <= 7:
                 rotation_axis = [self.center[0], self.center[1] - 45]
