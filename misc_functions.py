@@ -1,6 +1,7 @@
 import pygame
 from typing import *
 from shapely.geometry import *
+from shapely.ops import *
 from shapely import affinity
 
 
@@ -9,6 +10,19 @@ def x_reflect(polygon: Polygon, axis: float, direction: bool) -> Polygon:
         return polygon
     reflected_coords = [(axis * 2 - coord[0], coord[1]) for coord in list(polygon.exterior.coords)]
     return Polygon(reflected_coords)
+
+
+def x_reflect_list(lst: List, axis: float, direction: bool) -> List:
+    if direction:
+        return lst
+    return [(axis * 2 - coord[0], coord[1]) for coord in lst]
+
+
+def x_reflect_point(point: List, axis: float, direction: bool) -> List:
+    if direction:
+        return point
+    dis = point[0] - axis
+    return [axis - dis, point[1]]
 
 
 def draw_polygon(screen: pygame.Surface, color: Tuple, polygon: Polygon) -> None:
@@ -26,21 +40,12 @@ def in_relation(center: List, coordinates: List) -> List:
     return [[center[0] + coord[0], center[1] + coord[1]] for coord in coordinates]
 
 
-def hitbox_maker(center: List, hitbox_bounds: List, char_dir: bool, damage: int, attack_dir: float, kbg: int, bkb: int)\
-        -> List:
-    import engine
-    if char_dir:
-        attack_dir = engine.angle_converter(90 - attack_dir)
-    else:
-        attack_dir = engine.angle_converter(90 + attack_dir)
-    return [x_reflect(Polygon(in_relation(center, hitbox_bounds)), center[0], char_dir),
-            {'damage': damage, 'direction': attack_dir, 'KBG': kbg, 'BKB': bkb}]
+def in_relation_poly(poly: Polygon, center: Tuple):
+    return affinity.translate(poly, center[0], center[1])
 
 
-def hitbox_updater(center: List, hitbox_bounds: List, direction: bool, xoff=0, yoff=0) -> Polygon:
-    if not direction:
-        xoff *= -1
-    return affinity.translate(x_reflect(Polygon(in_relation(center, hitbox_bounds)), center[0], direction), xoff, yoff)
+def in_relation_point(center: List, coordinates: List) -> List:
+    return [center[0] + coordinates[0], center[1] + coordinates[1]]
 
 
 def hitbox_rotate(center: List, hitbox: Polygon, direction: bool, angle: float) -> Polygon:
@@ -49,7 +54,7 @@ def hitbox_rotate(center: List, hitbox: Polygon, direction: bool, angle: float) 
     return affinity.rotate(hitbox, angle, tuple(center))
 
 
-def directional_incrementer(value: float, increment: float, cross: float) -> float:
+def dir_inc(value: float, increment: float, cross: float) -> float:
     if value > cross:
         value += increment
         if value < cross:
@@ -61,3 +66,59 @@ def directional_incrementer(value: float, increment: float, cross: float) -> flo
             return cross
         return value
     return value
+
+
+def connect_hitbox(center1: List, center2: List, radius: float) -> Polygon:
+    if center1 != center2:
+        line = LineString([tuple(center1), tuple(center2)])
+        length = line.length
+        delx= abs(center2[0] - center1[0])
+        dely = abs(center2[1] - center1[1])
+        if center2[0] > center1[0] and center1[1] < center2[1]:
+            coords1 = list(affinity.translate(line, radius * dely / length, -radius * delx / length).coords)
+            coords2 = list(affinity.translate(line, -radius * dely / length, radius * delx / length).coords)
+        elif center2[0] > center1[0] and center1[1] > center2[1]:
+            coords1 = list(affinity.translate(line, radius * dely / length, radius * delx / length).coords)
+            coords2 = list(affinity.translate(line, - radius * dely / length, -radius * delx / length).coords)
+        elif center2[0] < center1[0] and center1[1] < center2[1]:
+            coords1 = list(affinity.translate(line, radius * dely / length, radius * delx / length).coords)
+            coords2 = list(affinity.translate(line, - radius * dely / length, -radius * delx / length).coords)
+
+        elif center2[0] < center1[0] and center1[1] > center2[1]:
+            coords1 = list(affinity.translate(line, radius * dely / length, -radius * delx / length).coords)
+            coords2 = list(affinity.translate(line, -radius * dely / length, radius * delx / length).coords)
+        else:
+            coords1 = list(affinity.translate(line, radius * dely / length, radius * delx / length).coords)
+            coords2 = list(affinity.translate(line, -radius * dely / length, -radius * delx / length).coords)
+        circle1 = Point(tuple(center1)).buffer(radius)
+        circle2 = Point(tuple(center2)).buffer(radius)
+        connecter = Polygon([coords1[0], coords1[1], coords2[1], coords2[0]])
+        return cascaded_union([circle1, circle2, connecter])
+    return Point(tuple(center1)).buffer(radius)
+
+
+def connecter_hitbox(center1: List, center2: List, radius: float) -> List:
+    if center1 != center2:
+        line = LineString([tuple(center1), tuple(center2)])
+        length = line.length
+        delx= abs(center2[0] - center1[0])
+        dely = abs(center2[1] - center1[1])
+        if center2[0] > center1[0] and center1[1] < center2[1]:
+            coords1 = list(affinity.translate(line, radius * dely / length, -radius * delx / length).coords)
+            coords2 = list(affinity.translate(line, -radius * dely / length, radius * delx / length).coords)
+        elif center2[0] > center1[0] and center1[1] > center2[1]:
+            coords1 = list(affinity.translate(line, radius * dely / length, radius * delx / length).coords)
+            coords2 = list(affinity.translate(line,- radius * dely / length, -radius * delx / length).coords)
+        elif center2[0] < center1[0] and center1[1] < center2[1]:
+            coords1 = list(affinity.translate(line, radius * dely / length, radius * delx / length).coords)
+            coords2 = list(affinity.translate(line, - radius * dely / length, -radius * delx / length).coords)
+
+        elif center2[0] < center1[0] and center1[1] > center2[1]:
+            coords1 = list(affinity.translate(line, radius * dely / length, -radius * delx / length).coords)
+            coords2 = list(affinity.translate(line, -radius * dely / length, radius * delx / length).coords)
+        else:
+            coords1 = list(affinity.translate(line, radius * dely / length, radius * delx / length).coords)
+            coords2 = list(affinity.translate(line, -radius * dely / length, -radius * delx / length).coords)
+        connecter = Polygon([coords1[0], coords1[1], coords2[1], coords2[0]])
+        return list(connecter.exterior.coords)
+    return []

@@ -6,6 +6,7 @@ pygame.init()
 pygame.joystick.init()
 
 
+# TODO: Make input a superclass for Keyboard, GC Controller, etc.
 class Input:
     """
     A class containing information and methods of a controller, including previous button presses.
@@ -146,151 +147,183 @@ def handle(char_control_map: Dict) -> None:
         cstick = [controller.get_axis(3), controller.get_axis(2)]
         ctrl_stick_mapping = controller.controller_mapping(ctrl_stick[0], ctrl_stick[1], 0.15)
         cstick_mapping = controller.controller_mapping(cstick[0], cstick[1], 0.15)
-        state = character.action_state
+        action_state = character.action_state
+        env_state = character.env_state
 
         if controller.get_button(12):
             character.update_center(500, 100)
-            character.action_state = ['airborne', 0, 'airborne', 0]
+            character.action_state = ['jump', 0]
             character.damage = 0
-            character.update_air_speed(0, 0)
+            character.update_speed(0, 0)
+            character.env_state = 'airborne'
         if controller.get_button(13):
-            print(character.action_state, character.center, character.ecb, character.invincible, character.misc_data['invincibility'])
+            print(character.direction, character.action_state, character.env_state, character.center, character.ecb, character.invincible, character.misc_data['invincibility'])
 
-        if state[0] == 'grounded' or state[0] == 'waveland':
+        if controller.get_button(14):
+            print(character.hitboxes)
 
-            if state[2] == 'grounded' or state[2] == 'dash' or state[2] == 'walk':
+        if character.misc_data['need_input'] == 0:
+            character.misc_data.update({'need_input': controller.get_angle(ctrl_stick)})
+
+        if env_state == 'grounded':
+            if action_state[0] in ('wait', 'start_dash', 'full_dash', 'walk', 'turnaround'):
                 if controller.get_axis(4) >= 0:
-                    character.shield()
+                    character.action('shielded')
 
                 elif ctrl_stick_mapping[0] != 0 and controller.get_button_change(1):
-                    character.ftilt()
+                    character.action('ftilt')
 
                 elif controller.get_button(2):
-                    character.neutral_special()
+                    character.action('neutral_special')
 
                 elif controller.get_button_change(3):
-                    character.jump(False)
+                    character.action('jumpsquat', False)
 
                 elif controller.get_button_change(0):
-                    character.jump(True)
+                    character.action('jumpsquat', True)
 
-                if ctrl_stick_mapping[0] != 0 and controller.get_button(4):
-                    if ctrl_stick_mapping[0] == 1:
-                        character.dash(True)
-                    else:
-                        character.dash(False)
+                elif controller.get_button_change(7):
+                    character.action('grab')
+
+                if controller.get_button(4):
+                    character.action('dash', ctrl_stick_mapping[0])
                 elif ctrl_stick_mapping[0] != 0:
-                    character.walk(ctrl_stick[0])
-                elif ctrl_stick_mapping[0] == 0 and state[2] == 'dash':
+                    character.action('walk', ctrl_stick[0])
+                elif ctrl_stick_mapping[0] == 0 and action_state[0] == 'start_dash':
                     pass
                     # super spaghetti, but it's gonna be fixed when the input for dash is implemented anyways
                 else:
-                    character.walk(0)
+                    character.action('walk', 0)
 
-            elif state[2] == 'jumpsquat':
+            elif action_state[0] == 'jumpsquat':
                 if controller.get_button(5) and ctrl_stick_mapping != [0, 0]:
-                    character.auto_wavedash(controller.get_angle(ctrl_stick))
+                    character.action('auto_wavedash', controller.get_angle(ctrl_stick))
                 elif ctrl_stick_mapping[0] == 1:
-                    character.ground_speed = character.attributes['max_gr_speed'] / 3
+                    character.misc_data.update({'jump_speed': character.attributes['max_gr_speed'] / 3})
                 elif ctrl_stick_mapping[0] == -1:
-                    character.ground_speed = -character.attributes['max_gr_speed'] / 3
+                    character.misc_data.update({'jump_speed': -character.attributes['max_gr_speed'] / 3})
+                else:
+                    character.misc_data.update({'jump_speed': 0})
 
-            elif state[2] == 'shield_off':
+            elif action_state[0] == 'shielded':
                 if controller.get_button_change(3):
-                    character.jump(False)
+                    character.action('jumpsquat', False)
                 elif controller.get_button_change(0):
-                    character.jump(True)
+                    character.action('jumpsquat', True)
+                elif controller.get_axis(4) < 0:
+                    character.action('shield_off', 15)
+                elif ctrl_stick_mapping[0] != 0:
+                    character.action('roll', ctrl_stick_mapping[0])
+                elif controller.get_axis(4) >= 0:
+                    character.action('shield')
 
-        elif state[0] == 'airborne':
-            if ctrl_stick_mapping[0] != 0:
+            elif action_state[0] == 'grabbing':
+                if ctrl_stick_mapping[1] == 1:
+                    character.action_state = ['upthrow', 0]
+
+            elif action_state[0] == 'shield_off':
+                if controller.get_button_change(3):
+                    character.action('jumpsquat', False)
+                elif controller.get_button_change(0):
+                    character.action('jumpsquat', True)
+
+            elif action_state[0] == 'kd_wait':
+                if ctrl_stick_mapping[0] != 0:
+                    character.action('kd_roll', ctrl_stick_mapping[0])
+                elif ctrl_stick_mapping[1] == 1:
+                    character.action('kd_getup')
+
+        elif env_state == 'airborne':
+            if ctrl_stick_mapping[0] != 0 and character.action_state[0] != 'hitstun':
                 character.drift(ctrl_stick[0])
             else:
                 character.drift(0)
 
             if controller.get_button_change(5):
                 if ctrl_stick_mapping != [0, 0]:
-                    character.airdodge(controller.get_angle(ctrl_stick))
+                    character.action('airdodge', controller.get_angle(ctrl_stick))
                 else:
-                    character.airdodge()
+                    character.action('airdodge', False)
 
-            if controller.get_axis_change(1, 0.25, 0.3) and character.air_speed[1] <= 0 and ctrl_stick_mapping[1] == -1:
-                character.update_air_speed(character.air_speed[0], -character.attributes['max_vair_speed'])
+            if controller.get_axis_change(1, 0.25, 0.3) and character.speed[1] <= 0 and ctrl_stick_mapping[1] == -1:
+                character.update_speed(0, -character.attributes['max_vair_speed'])
 
             elif controller.get_button_change(1):
                 if character.direction:
                     if ctrl_stick_mapping[0] == 1:
-                        character.fair()
+                        character.action('fair')
                     elif ctrl_stick_mapping[0] == -1:
-                        character.bair()
+                        character.action('bair')
                 elif not character.direction:
                     if ctrl_stick_mapping[0] == 1:
-                        character.bair()
+                        character.action('bair')
                     elif ctrl_stick_mapping[0] == -1:
-                        character.fair()
+                        character.action('fair')
                 if ctrl_stick_mapping[1] == 1:
-                    character.upair()
+                    character.action('upair')
                 elif ctrl_stick_mapping[1] == -1:
-                    character.dair()
+                    character.action('dair')
 
             elif controller.get_axis_change(2, 0.15, 0.2) or controller.get_axis_change(3, 0.15, 0.2):
                 if character.direction:
                     if cstick_mapping[0] == 1:
-                        character.fair()
+                        character.action('fair')
                     elif cstick_mapping[0] == -1:
-                        character.bair()
+                        character.action('bair')
                 elif not character.direction:
                     if cstick_mapping[0] == 1:
-                        character.bair()
+                        character.action('bair')
                     elif cstick_mapping[0] == -1:
-                        character.fair()
+                        character.action('fair')
                 if cstick_mapping[1] == 1:
                     character.upair()
                 elif cstick_mapping[1] == -1:
                     character.dair()
 
             elif controller.get_button(2):
-                character.neutral_special()
+                if ctrl_stick_mapping[1] == 1:
+                    character.action('up_special')
+                else:
+                    character.action('neutral_special')
 
             elif controller.get_button_change(3) or controller.get_button_change(0):
-                character.jump(False)
-                if ctrl_stick_mapping[0] != 0:
-                    if ctrl_stick_mapping[0] == 1:
-                        character.update_air_speed(character.attributes['max_hair_speed'], character.air_speed[1])
-                    else:
-                        character.update_air_speed(-character.attributes['max_hair_speed'], character.air_speed[1])
+                character.action('aerial_jump', ctrl_stick_mapping[0])
 
-        elif state[0] == 'shielded':
-            if controller.get_button_change(3):
-                character.jump(False)
+            elif action_state[0] in ('hitstun', 'tumble'):
+                if controller.get_axis(4) >= 0:
+                    character.misc_data.update({'tech': 40})
 
-            elif controller.get_button_change(0):
-                character.jump(True)
-
-            elif controller.get_axis(4) < 0:
-                character.drop_shield()
-
-            elif controller.get_axis(4) >= 0:
-                character.shield()
-
-        elif state[0] == 'hitlag' and state[1] == 1 and character.misc_data['attack_data'] is not None:
+        if action_state[0] == 'hitlag' and action_state[1] == 1 and character.misc_data['attack_data'] is not None:
             if ctrl_stick_mapping != [0, 0]:
                 engine.handle_hit(character, character.misc_data['attack_data'], controller.get_angle(ctrl_stick))
+                character.misc_data.update({'ASDI': controller.get_angle(ctrl_stick)})
             else:
                 engine.handle_hit(character, character.misc_data['attack_data'])
 
-        elif state[0] == 'ledge_wait':
+        elif action_state[0] == 'ledge_wait':
             if ctrl_stick_mapping[1] == -1:
-                character.action_state = ['airborne', 0, 'airborne', 0]
-                character.update_air_speed(0, -character.attributes['max_vair_speed'])
+                character.action_state = ['jump', 0]
+                character.env_state = 'airborne'
+                character.update_speed(0, -character.attributes['max_vair_speed'])
             elif ctrl_stick_mapping[0] == -1:
                 if character.direction:
-                    character.action_state = ['airborne', 0, 'airborne', 0]
-                    character.update_air_speed(0, 0)
+                    character.action_state = ['jump', 0]
+                    character.env_state = 'airborne'
+                    character.update_speed(0, 0)
                 else:
-                    character.ledge_getup()
+                    character.action('ledge_getup')
             elif ctrl_stick_mapping[0] == 1:
                 if not character.direction:
-                    character.action_state = ['airborne', 0, 'airborne', 0]
-                    character.update_air_speed(0, 0)
+                    character.action_state = ['jump', 0]
+                    character.env_state = 'airborne'
+                    character.update_speed(0, 0)
                 else:
-                    character.ledge_getup()
+                    character.action('ledge_getup')
+            elif controller.get_button(3) or controller.get_button(0):
+                character.action_state = ['ledge_jump', 0]
+
+            elif controller.get_button(5):
+                character.action_state = ['ledge_roll', 0]
+
+
+
