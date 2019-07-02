@@ -1,6 +1,7 @@
-import sys, pickle, tkinter, os, ctypes
+import sys, pickle, tkinter, os, time
 from tkinter import *
 from tkinter import filedialog
+from tkinter import simpledialog
 from tkinter import ttk
 
 root_path = os.path.dirname(os.path.realpath(__file__))
@@ -109,7 +110,7 @@ class TKTree:
 
         self.pklTreePointer = {id(pklTreeRoot): pklTreeRoot}
 
-        self.tkTree = ttk.Treeview(root)
+        self.tkTree = ttk.Treeview(root, height=40)
         self.load(pklTreeRoot)
 
         self.setup_UI(root)
@@ -120,16 +121,17 @@ class TKTree:
         filemenu = Menu(menubar, tearoff=0)
         filemenu.add_command(label="Open", command=self.open_file)
         filemenu.add_command(label="Save", command=self.save)
-        filemenu.add_command(label="Convert")
+        filemenu.add_separator()
+        filemenu.add_command(label='Hard refresh', command=self.hrefresh)
         filemenu.add_separator()
         filemenu.add_command(label="Exit", command=root.quit)
         menubar.add_cascade(label="File", menu=filemenu)
 
         editmenu = Menu(menubar, tearoff=0)
+        editmenu.add_command(label="Edit")
         editmenu.add_command(label="Cut")
         editmenu.add_command(label="Copy")
         editmenu.add_command(label="Paste")
-        editmenu.add_command(label='Hard refresh', command=self.hrefresh)
         menubar.add_cascade(label="Edit", menu=editmenu)
 
         helpmenu = Menu(menubar, tearoff=0)
@@ -138,26 +140,34 @@ class TKTree:
 
         root.config(menu=menubar)
 
-        edit = Button(root, text='Edit', command=self.edit)
-        edit.pack()
-
-        self.entry = Entry(root)
-        self.entry.pack()
-
         self.tkTree.config(columns=('type', 'value'))
         self.tkTree.heading('#0', text='key')
         self.tkTree.heading('type', text='type')
         self.tkTree.heading('value', text='value')
-        self.tkTree.pack()
+        self.tkTree.bind('<B1-Motion>', self.move)
+        self.tkTree.bind('<Double-Button-1>', self.edit)
+        self.tkTree.bind('<Double-Button-3>', self.multi_edit)
+        self.tkTree.grid(row=0, column=0)
+
 
     def open_file(self):
         file = filedialog.askopenfilename(initialdir=root_path, title='Select file',
                                           filetypes=(('PolyPickle Files', '*.plypk'), ('All files', '*.*')))
         name = os.path.splitext(os.path.basename(file))[0]
+
+        popup = Toplevel()
+        popup.wm_title('Progress')
+
+        progressbar = ttk.Progressbar(popup, orient='horizontal', length=100, mode='indeterminate')
+        progressbar.pack()
+
         with open(file, 'rb') as pkl:
             item = PklTreeItem().load(pickle.load(pkl), self.pklTreeRoot, name)
             self.load(item, self.pklTreeRoot)
             self.pklTreeRoot.appendChild(item)
+
+        popup.destroy()
+
 
     def load(self, item: PklTreeItem, parent=None):
         item_id = id(item)
@@ -175,17 +185,55 @@ class TKTree:
             for children in item.Children:
                 self.load(children, item)
 
-    def edit(self):
-        tree_selection = self.tkTree.selection()[0]
-        selection_id = int(tree_selection)
-        selection = self.pklTreePointer[selection_id]
-        try:
-            if selection.type() != 'None':
-                selection.setValue(self.entry.get())
-                self.tkTree.item(tree_selection, values=(selection.type(), selection.value()))
+    def lookup(self, item: str):
+        if item == '':
+            return ''
+        return self.pklTreePointer[int(item)]
 
-        except:
-            pass
+    def edit(self, event):
+        column = self.tkTree.identify_column(self.tkTree.winfo_pointerxy()[0] - self.tkTree.winfo_rootx())
+        tree_selection = self.tkTree.selection()[0]
+        selection = self.lookup(tree_selection)
+        value = simpledialog.askstring('Edit', 'Edit Value:')
+        if value != '':
+            if column == '#0':
+                selection.setKey(value)
+                self.tkTree.item(tree_selection, text=value)
+            elif column == '#1':
+                selection.setType(value)
+                self.tkTree.set(tree_selection, column, value)
+            elif column == '#2':
+                selection.setValue(value)
+                self.tkTree.set(tree_selection, column, value)
+
+    def multi_edit(self, event):
+        tree_selection = self.tkTree.selection()
+        value = simpledialog.askstring('Edit', 'Edit Value:')
+        for item in tree_selection:
+            selection = self.lookup(item)
+            selection.setValue(value)
+            self.tkTree.set(item, '#2', value)
+
+
+    def move(self, event):
+        hover = self.tkTree.identify_row(self.tkTree.winfo_pointerxy()[1] - self.tkTree.winfo_rooty())
+        if hover != '':
+            tree_selection = self.tkTree.selection()
+            pkl_hover = self.lookup(hover)
+            hover_index = self.lookup(hover).row()
+            hover_parent = self.tkTree.parent(hover)
+            pkl_hover_parent = self.lookup(hover_parent)
+            for item in tree_selection:
+                if hover_parent != '':
+                    pkl_item = self.lookup(item)
+                    pkl_item_parent = pkl_item.Parent
+                    if pkl_item_parent == self.lookup(hover_parent):
+                        pkl_item_parent.Children.insert(hover_index, pkl_item_parent.Children.pop(pkl_item.row()))
+                    else:
+                        pkl_hover_parent.Children.insert(hover_index, pkl_item_parent.Children.pop(pkl_item.row()))
+                        pkl_item.Parent = pkl_hover_parent
+
+                self.tkTree.move(item, hover_parent, hover_index)
 
     def hrefresh(self):
         for children in self.pklTreeRoot.Children:
@@ -199,20 +247,33 @@ class TKTree:
                                                         ("All files", "*.*")))
         if file == '':
             return
+        popup = Toplevel()
+        popup.wm_title('Progress')
+
+        progressbar = ttk.Progressbar(popup, orient='horizontal', length=100, mode='indeterminate')
+        progressbar.pack()
+
         converted = self.pklTreeRoot.convert()
         with open('{}.dbpk'.format(file), 'wb') as output:
             pickle.dump(converted, output, pickle.HIGHEST_PROTOCOL)
 
+        popup.destroy()
+
 
 
 root = Tk()
+root.geometry('600x800+600+50')
 
 mainPklTree = PklTreeItem()
 mainPklTree.setKey('main')
-mainPklTree.setType('list')
+mainPklTree.setType('dict')
 mainPklTree.setValue('None')
 
 tktree = TKTree(root, mainPklTree)
+with open('C:/Users/Tony/PycharmProjects/experimental branch v0.22/assets/jumpboitest.plypk', 'rb') as pkl:
+    item = PklTreeItem().load(pickle.load(pkl), tktree.pklTreeRoot, 'jumpboitest')
+    tktree.load(item, tktree.pklTreeRoot)
+    tktree.pklTreeRoot.appendChild(item)
 
 
 root.mainloop()
