@@ -82,6 +82,7 @@ class PklTreeItem:
             rootItem.setType(type(value).__name__)
         return rootItem
 
+
     def convert(self):
         if self.type() == 'dict':
             item_dict = {}
@@ -114,6 +115,9 @@ class TKTree:
         self.tkTree = ttk.Treeview(root, height=40)
         self.load(pklTreeRoot)
 
+        self.logs = []
+        self.rlogs = []
+
         self.setup_UI(root)
 
     def setup_UI(self, root: Tk):
@@ -129,10 +133,16 @@ class TKTree:
         menubar.add_cascade(label="File", menu=filemenu)
 
         editmenu = Menu(menubar, tearoff=0)
+        editmenu.add_command(label="Undo", accelerator='Control+Z', command=self.ctrlz)
+        self.tkTree.bind('<Control-z>', self.undo)
+        editmenu.add_command(label="Redo", accelerator='Control+V', command=self.ctrlsz)
+        self.tkTree.bind('<Control-Z>', self.redo)
         editmenu.add_command(label="Copy", accelerator='Control+C', command=self.ctrlc)
         self.tkTree.bind('<Control-c>', self.copy)
         editmenu.add_command(label="Paste", accelerator='Control+V', command=self.ctrlv)
         self.tkTree.bind('<Control-v>', self.paste)
+        editmenu.add_command(label="Delete", accelerator='Control+V', command=self.ctrlx)
+        self.tkTree.bind('<Control-x>', self.delete)
         editmenu.add_command(label="Delete", accelerator='Control+V', command=self.ctrlx)
         self.tkTree.bind('<Control-x>', self.delete)
         menubar.add_cascade(label="Edit", menu=editmenu)
@@ -152,7 +162,6 @@ class TKTree:
         self.tkTree.bind('<Double-Button-3>', self.multi_edit)
         self.tkTree.grid(row=0, column=0)
 
-
     def open_file(self):
         file = filedialog.askopenfilename(initialdir=root_path, title='Select file',
                                           filetypes=(('PolyPickle Files', '*.plypk'), ('All files', '*.*')))
@@ -170,7 +179,6 @@ class TKTree:
             self.pklTreeRoot.appendChild(item)
 
         popup.destroy()
-
 
     def load(self, item: PklTreeItem, parent=None):
         item_id = id(item)
@@ -217,17 +225,7 @@ class TKTree:
             selection.setValue(value)
             self.tkTree.set(item, '#2', value)
 
-    def ctrlc(self):
-        self.copy('')
-
-    def ctrlv(self):
-        self.paste('')
-
-    def ctrlx(self):
-        self.delete('')
-
     def copy(self, event):
-
         tree_selection = self.tkTree.selection()
         pti_copy = []
         item_ids = []
@@ -240,6 +238,7 @@ class TKTree:
 
     def paste(self, event):
         try:
+            self.log()
             tree_selection = self.tkTree.selection()[0]
             for item in self.copied:
                 pkl_item = self.lookup(item)
@@ -248,12 +247,40 @@ class TKTree:
             pass
 
     def delete(self, event):
+        self.log()
         tree_selection = self.tkTree.selection()
         for item in tree_selection:
             pkl_item = self.lookup(item)
             pkl_item.Parent.Children.remove(pkl_item)
+            del self.pklTreePointer[int(item)]
             del pkl_item
             self.tkTree.delete(item)
+
+    def log(self):
+        self.logs.append([copy.deepcopy(self.pklTreeRoot), copy.deepcopy(self.pklTreePointer)])
+        if len(self.logs) > 20:
+            del self.logs[0]
+
+    def rlog(self):
+        self.rlogs.append([copy.deepcopy(self.pklTreeRoot), copy.deepcopy(self.pklTreePointer)])
+        if len(self.rlogs) > 20:
+            del self.rlogs[0]
+
+    def undo(self, event):
+        if self.logs:
+            log = self.logs.pop()
+            self.rlog()
+            self.pklTreeRoot = log[0]
+            self.pklTreePointer = log[1]
+            self.hrefresh()
+
+    def redo(self, event):
+        if self.rlogs:
+            log = self.rlogs.pop()
+            self.log()
+            self.pklTreeRoot = log[0]
+            self.pklTreePointer = log[1]
+            self.hrefresh()
 
     def move(self, event):
         hover = self.tkTree.identify_row(self.tkTree.winfo_pointerxy()[1] - self.tkTree.winfo_rooty())
@@ -276,9 +303,10 @@ class TKTree:
                 self.tkTree.move(item, hover_parent, hover_index)
 
     def hrefresh(self):
-        for children in self.pklTreeRoot.Children:
-            self.tkTree.delete(id(children))
-            self.load(children, self.pklTreeRoot)
+        state = self.get_openstate()
+        self.tkTree.delete(*self.tkTree.get_children())
+        self.load(self.pklTreeRoot)
+        self.restore_openstate(state)
 
     def save(self):
         file = filedialog.asksaveasfilename(initialdir=root_path,
@@ -299,6 +327,31 @@ class TKTree:
 
         popup.destroy()
 
+    def get_openstate(self):
+        state = {}
+        for ids in self.pklTreePointer:
+            state[ids] = self.tkTree.item(ids, 'open')
+        return state
+
+    def restore_openstate(self, state):
+        for ids in state:
+            self.tkTree.item(ids, open=state[ids])
+
+    def ctrlc(self):
+        self.copy('')
+
+    def ctrlv(self):
+        self.paste('')
+
+    def ctrlx(self):
+        self.delete('')
+
+    def ctrlz(self):
+        self.undo('')
+
+    def ctrlsz(self):
+        self.redo('')
+
 
 
 root = Tk()
@@ -310,10 +363,6 @@ mainPklTree.setType('dict')
 mainPklTree.setValue('None')
 
 tktree = TKTree(root, mainPklTree)
-with open('C:/Users/Tony/PycharmProjects/experimental branch v0.22/assets/jumpboitest.plypk', 'rb') as pkl:
-    item = PklTreeItem().load(pickle.load(pkl), tktree.pklTreeRoot, 'jumpboitest')
-    tktree.load(item, tktree.pklTreeRoot)
-    tktree.pklTreeRoot.appendChild(item)
 
 
 root.mainloop()
