@@ -1,4 +1,4 @@
-import sys, pickle, tkinter, os, time
+import sys, pickle, tkinter, os, copy
 from tkinter import *
 from tkinter import filedialog
 from tkinter import simpledialog
@@ -101,6 +101,7 @@ class PklTreeItem:
             return self.value()
 
 
+# noinspection SpellCheckingInspection,PyAttributeOutsideInit
 class TKTree:
 
     def __init__(self, root: Tk, pklTreeRoot=None):
@@ -128,10 +129,12 @@ class TKTree:
         menubar.add_cascade(label="File", menu=filemenu)
 
         editmenu = Menu(menubar, tearoff=0)
-        editmenu.add_command(label="Edit")
-        editmenu.add_command(label="Cut")
-        editmenu.add_command(label="Copy")
-        editmenu.add_command(label="Paste")
+        editmenu.add_command(label="Copy", accelerator='Control+C', command=self.ctrlc)
+        self.tkTree.bind('<Control-c>', self.copy)
+        editmenu.add_command(label="Paste", accelerator='Control+V', command=self.ctrlv)
+        self.tkTree.bind('<Control-v>', self.paste)
+        editmenu.add_command(label="Delete", accelerator='Control+V', command=self.ctrlx)
+        self.tkTree.bind('<Control-x>', self.delete)
         menubar.add_cascade(label="Edit", menu=editmenu)
 
         helpmenu = Menu(menubar, tearoff=0)
@@ -195,7 +198,7 @@ class TKTree:
         tree_selection = self.tkTree.selection()[0]
         selection = self.lookup(tree_selection)
         value = simpledialog.askstring('Edit', 'Edit Value:')
-        if value != '':
+        if value != '' and value is not None:
             if column == '#0':
                 selection.setKey(value)
                 self.tkTree.item(tree_selection, text=value)
@@ -214,6 +217,43 @@ class TKTree:
             selection.setValue(value)
             self.tkTree.set(item, '#2', value)
 
+    def ctrlc(self):
+        self.copy('')
+
+    def ctrlv(self):
+        self.paste('')
+
+    def ctrlx(self):
+        self.delete('')
+
+    def copy(self, event):
+
+        tree_selection = self.tkTree.selection()
+        pti_copy = []
+        item_ids = []
+        for item in tree_selection:
+            _copy = copy.deepcopy(self.lookup(item))
+            pti_copy.append(_copy)
+            item_ids.append(str(id(_copy)))
+            self.pklTreePointer[id(_copy)] = _copy
+        self.copied = item_ids
+
+    def paste(self, event):
+        try:
+            tree_selection = self.tkTree.selection()[0]
+            for item in self.copied:
+                pkl_item = self.lookup(item)
+                self.load(pkl_item, self.lookup(tree_selection))
+        except:
+            pass
+
+    def delete(self, event):
+        tree_selection = self.tkTree.selection()
+        for item in tree_selection:
+            pkl_item = self.lookup(item)
+            pkl_item.Parent.Children.remove(pkl_item)
+            del pkl_item
+            self.tkTree.delete(item)
 
     def move(self, event):
         hover = self.tkTree.identify_row(self.tkTree.winfo_pointerxy()[1] - self.tkTree.winfo_rooty())
