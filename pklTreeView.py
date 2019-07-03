@@ -6,8 +6,6 @@ from tkinter import ttk
 
 root_path = os.path.dirname(os.path.realpath(__file__))
 
-output_dict = {}
-
 class PklTreeItem:
 
     def __init__(self, parent=None):
@@ -353,16 +351,16 @@ class TKTree:
         self.redo('')
 
 
+if __name__ == '__main__':
+    root = Tk()
+    root.geometry('600x800+600+50')
 
-root = Tk()
-root.geometry('600x800+600+50')
+    mainPklTree = PklTreeItem()
+    mainPklTree.setKey('main')
+    mainPklTree.setType('dict')
+    mainPklTree.setValue('None')
 
-mainPklTree = PklTreeItem()
-mainPklTree.setKey('main')
-mainPklTree.setType('dict')
-mainPklTree.setValue('None')
-
-tktree = TKTree(root, mainPklTree)
+    tktree = TKTree(root, mainPklTree)
 
 
-root.mainloop()
+    root.mainloop()
