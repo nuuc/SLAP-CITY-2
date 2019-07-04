@@ -1,9 +1,9 @@
 # SLAP-CITY-2
 ## Table of contents
 
-[Changelog](https://github.com/nuuc/Super-Slam-Brothers-Jam#changelog)
+[Changelog](#changelog)
 
-[Task List](https://github.com/nuuc/Super-Slam-Brothers-Jam#task-list)
+[Task List](#task-list)
 
 ## Changelog
 
