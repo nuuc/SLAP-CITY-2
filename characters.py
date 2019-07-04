@@ -18,25 +18,6 @@ with open('assets/character_info/json_zimmerman.json') as json_file:
 class Character:
     """
     An abstract representation of a Slap City 2 character.
-     === PUBLIC ATTRIBUTES ===
-     action_state: A list containing a character's action state. The first index is its main action state (i.e.
-    'airborne'), the second is the frame of its main state (currently this is only used for wavelanding, but it may
-    be useful later), the third is its substate, and the fourth is the frame of its substate.
-    attributes: A tuple containing character attributes such as ground speed, air speed, etc.
-    air_speed: A list of a character's horizontal and vertical air velocity
-    center: A list of a character's x and y coordinates. This is used in reference to the characters hurtboxes/
-    hitboxes.
-    damage: How much damage a character has taken. Higher percentage means higher knockback.
-    direction: The direction a character is facing. Left will be False and right will be True.
-    ground_speed: A character's ground speed
-    ecb: A list of a character's edges for interacting with the stage. Its indexes are left, right, top and bottom.
-    hurtboxes: A list of pygame rectangles of a character's hurtboxes.
-    hitboxes: A list with the first index being a list of a character's active hitboxes and the second index being
-    a dictionary of each hitbox data: 'damage', 'direction', 'KBG', 'BKB'
-    invincible: A list with the first index being True if a character is invincible and the second index is how many
-    frames of invincibility it has left.
-    jumped: True if a character has jumped in the air, False if they haven't.
-    misc_data: Miscellaneous data that is used for entering hitlag, airdodging, etc.
     """
     action_state: List
     speed: List
@@ -50,68 +31,58 @@ class Character:
     hurtboxes: Polygon
     invincible: bool
     jumped: bool
-    misc_data: Dict
+    data: Dict
     moves: Dict
     meter: int
 
-    def __init__(self, center: List[int], direction: bool, action_state: List, env_state: str) -> None:
-        self.action_state = action_state
+    def __init__(self) -> None:
+        self.action_state = ['rebirth', 30]
         self.speed = [0, 0]
         self.attributes = {}
-        self.center = center
-        self.damage = 0
-        self.direction = direction
+        self.center = [0, 0]
+        self.direction = False
         self.ecb = []
-        self.env_state = env_state
+        self.env_state = 'suspended'
         self.hitboxes = {'regular': [[], [], False], 'projectile': []}
-        self.hurtboxes = None
-        self.invincible = False
-        self.jumped = False
-        self.misc_data = {'shield_health': 86, 'invincibility': 60, 'need_input': -1, 'on_ledge': 0,
-                          'wavelanding': False, 'landing_lag': UNIV_LANDING_LAG, 'dash_dir': 0, 'tech': 0, 'ASDI': 0,
-                          'super_meter': 0}
+        self.hurtboxes = {}
+        self.data = {'shield_health': 86, 'invincible': False, 'invincibility': 0, 'need_input': -1, 'on_ledge': 0,
+                     'sliding': False, 'landing_lag': UNIV_LANDING_LAG, 'dash_dir': 0, 'tech_input': 0, 'ASDI': 0,
+                     'meter': 0, 'jumped': False, 'damage': 0}
         self.moves = {}
-        self.meter = 0
 
     def update(self) -> None:
         """
         Update the character based on their action state.
         """
         # TODO: Generalize update to handle all action states
-        if self.misc_data['invincibility'] >= 0:
-            self.misc_data['invincibility'] -= 1
-            if self.misc_data['invincibility'] <= 0:
-                self.invincible = False
+        if self.data['invincibility'] >= 0:
+            self.data['invincibility'] -= 1
+            if self.data['invincibility'] <= 0:
+                self.data['invincible'] = False
             else:
-                self.invincible = True
+                self.data['invincible'] = True
 
-        if self.misc_data['tech'] >= 0:
-            self.misc_data['tech'] -= 1
+        if self.data['tech'] >= 0:
+            self.data['tech'] -= 1
 
-        # for projectile in self.hitboxes['projectile']:
-        #     if projectile[2]:
-        #         projectile[0] = affinity.translate(projectile[0], 20)
-        #     else:
-        #         projectile[0] = affinity.translate(projectile[0], -20)
-        #     if projectile[0].bounds[2] >= 1280 or projectile[0].bounds[0] <= 0:
-        #         self.hitboxes['projectile'].remove(projectile)
+        # Update projectiles
 
         if self.action_state[0] != 'shielded':
-            if self.misc_data['shield_health'] < 86:
-                self.misc_data['shield_health'] += 0.1
-            elif self.misc_data['shield_health'] > 86:
-                self.misc_data['shield_health'] = 86
+            if self.data['shield_health'] < 86:
+                self.data['shield_health'] += 0.1
+            elif self.data['shield_health'] > 86:
+                self.data['shield_health'] = 86
 
         if self.action_state[0] == 'hitlag':
             self.action_state[1] -= 1
             if self.action_state[1] == 0:
-                if self.misc_data['ASDI'] != 0:
-                    self.increment_center(math.cos(self.misc_data['ASDI']) * ASDI_MULTI,
-                                          -math.sin(self.misc_data['ASDI']) * ASDI_MULTI)
-                self.action_state = self.misc_data['action_state']
+                if self.data['ASDI'] != 0:
+                    self.increment_center(math.cos(self.data['ASDI']) * ASDI_MULTI,
+                                          -math.sin(self.data['ASDI']) * ASDI_MULTI)
+                self.action_state = self.data['action_state']
 
         elif self.env_state == 'grounded':
-            if self.misc_data['wavelanding']:
+            if self.data['wavelanding']:
                 if not self.speed[0] == 0:
                     if abs(self.speed[0]) > self.attributes['high_traction_speed']:
                         self.speed[0] = dir_inc(self.speed[0], -2 * self.attributes['traction'], 0)
@@ -120,14 +91,14 @@ class Character:
                     self.increment_center(self.speed[0])
 
             if self.action_state[0] == 'walk':
-                tilt = self.misc_data['walk_tilt']
+                tilt = self.data['walk_tilt']
                 if tilt != 0:
-                    self.misc_data.update({'wavelanding': False})
+                    self.data.update({'wavelanding': False})
                     self.update_speed(self.attributes['max_gr_speed'] * tilt * 0.7)
                     self.increment_center(self.speed[0])
-                elif self.misc_data['wavelanding'] and tilt == 0:
+                elif self.data['wavelanding'] and tilt == 0:
                     self.action_state = ['wait', 0]
-                elif not self.misc_data['wavelanding'] and tilt == 0:
+                elif not self.data['wavelanding'] and tilt == 0:
                     self.action_state = ['wait', 0]
                     self.update_speed(0)
                 if tilt > 0:
@@ -135,36 +106,36 @@ class Character:
                 elif tilt < 0:
                     self.direction = False
             elif self.action_state[0] == 'start_dash':
-                self.misc_data.update({'wavelanding': False})
+                self.data.update({'wavelanding': False})
                 self.action_state[1] += 1
                 if self.action_state[1] == self.attributes['dash_frames']:
                     self.action_state = ['full_dash', 0]
-                if self.misc_data['dash_dir'] < 0:
+                if self.data['dash_dir'] < 0:
                     self.direction = False
-                elif self.misc_data['dash_dir'] > 0:
+                elif self.data['dash_dir'] > 0:
                     self.direction = True
-                self.speed[0] = self.attributes['max_gr_speed'] * self.misc_data['dash_dir']
+                self.speed[0] = self.attributes['max_gr_speed'] * self.data['dash_dir']
                 self.increment_center(self.speed[0])
 
             elif self.action_state[0] == 'full_dash':
                 self.increment_center(self.speed[0])
-                if self.misc_data['dash_dir'] < 0:
+                if self.data['dash_dir'] < 0:
                     self.direction = False
-                elif self.misc_data['dash_dir'] > 0:
+                elif self.data['dash_dir'] > 0:
                     self.direction = True
 
             elif self.action_state[0] == 'turnaround':
                 self.action_state[1] += 1
                 if self.action_state[1] == 1:
-                    self.misc_data.update({'turnaround_initial': numpy.sign(self.speed.copy()[0])})
-                if self.misc_data['turnaround_initial'] > 0:
+                    self.data.update({'turnaround_initial': numpy.sign(self.speed.copy()[0])})
+                if self.data['turnaround_initial'] > 0:
                     self.speed[0] -= self.attributes['traction']
                 else:
                     self.speed[0] += self.attributes['traction']
 
                 if self.action_state[1] < self.attributes['turnaround_frames']:
-                    self.misc_data.update({'dash_dir': 0})
-                elif self.misc_data['dash_dir'] != 0:
+                    self.data.update({'dash_dir': 0})
+                elif self.data['dash_dir'] != 0:
                     self.action_state = ['start_dash', 0]
                 else:
                     self.action_state = ['wait', 0]
@@ -185,12 +156,12 @@ class Character:
                 self.increment_center(dir_inc(self.speed[0], -2 * self.attributes['traction'], 0))
                 if self.action_state[1] > JUMPSQUAT_FRAME:
                     self.env_state = 'airborne'
-                    if self.misc_data['released']:
-                        self.update_speed(self.misc_data['jump_speed'],
+                    if self.data['released']:
+                        self.update_speed(self.data['jump_speed'],
                                           self.attributes['shorthop_velocity'] - self.attributes['vair_acc'])
                         self.increment_center(self.speed[0], -self.attributes['shorthop_velocity'])
                     else:
-                        self.update_speed(self.misc_data['jump_speed'],
+                        self.update_speed(self.data['jump_speed'],
                                           self.attributes['fullhop_velocity'] - self.attributes['vair_acc'])
                         self.increment_center(self.speed[0], -self.attributes['fullhop_velocity'])
                     self.action_state = ['jump', 0]
@@ -200,10 +171,10 @@ class Character:
                 if self.action_state[1] > JUMPSQUAT_FRAME:
                     self.env_state = 'airborne'
                     self.action_state = ['jump', 0]
-                    self.action('airdodge', self.misc_data['angle'])
+                    self.action('airdodge', self.data['angle'])
 
             elif self.action_state[0] == 'shielded':
-                self.misc_data['shield_health'] -= 0.2
+                self.data['shield_health'] -= 0.2
 
             elif self.action_state[0] == 'shield_off':
                 self.action_state[1] -= 1
@@ -222,7 +193,7 @@ class Character:
                         self.update_speed(dir_inc(self.speed[0], -self.attributes['traction'], 0))
                     self.increment_center(self.speed[0])
             elif self.action_state[0] == 'kd_bounce':
-                self.misc_data.update({'wavelanding': False})
+                self.data.update({'wavelanding': False})
                 self.update_speed(dir_inc(self.speed[0], -self.attributes['air_friction'], 0))
                 self.increment_center(self.speed[0])
                 self.action_state[1] -= 1
@@ -251,10 +222,10 @@ class Character:
             if self.action_state[0] == 'airdodge':
                 self.action_state[1] += 1
                 if self.action_state[1] == 3:
-                    self.misc_data.update({'invincibility': 27})
+                    self.data.update({'invincibility': 27})
                 elif self.action_state[1] < 28:
                     multiplier = (605535 / (self.action_state[1] + 29.65) ** 3.24) - 0.25
-                    angle = self.misc_data['angle']
+                    angle = self.data['angle']
                     if angle:
                         self.update_speed(math.cos(angle) * multiplier, math.sin(angle) * multiplier)
                         self.increment_center(self.speed[0], -self.speed[1])
@@ -269,7 +240,7 @@ class Character:
                 self.increment_center(self.speed[0], -self.speed[1])
                 self.action_state[1] -= 1
                 if self.action_state[1] == 0:
-                    if self.misc_data['kb'] < 80:
+                    if self.data['kb'] < 80:
                         self.action_state = ['jump', 0]
                     else:
                         self.action_state = ['tumble', 0]
@@ -311,7 +282,7 @@ class Character:
                 if self.moves[self.action_state[0]]['type'] == 'maneuver':
                     if self.env_state == 'grounded':
                         if self.action_state[1] == self.moves[self.action_state[0]]['invincible'][0]:
-                            self.misc_data.update({'invincibility': self.moves[self.action_state[0]]['invincible'][1]})
+                            self.data.update({'invincibility': self.moves[self.action_state[0]]['invincible'][1]})
                         if self.action_state[1] == self.moves[self.action_state[0]]['end']:
                             if self.action_state[0] == 'rollf':
                                 self.direction = not self.direction
@@ -340,12 +311,12 @@ class Character:
                                 self.increment_center(eval(self.moves[self.action_state[0]]['increment']))
                     elif self.env_state == 'ledge':
                         if self.action_state[1] == self.moves[self.action_state[0]]['invincible'][0]:
-                            self.misc_data.update({'invincibility': self.moves[self.action_state[0]]['invincible'][1]})
+                            self.data.update({'invincibility': self.moves[self.action_state[0]]['invincible'][1]})
                         if self.action_state[1] <= 10:
                             self.increment_center(0, -9)
                         else:
                             self.env_state = 'grounded'
-                            self.misc_data.update({'wavelanding': False})
+                            self.data.update({'wavelanding': False})
 
     def update_ecb(self) -> None:
         raise NotImplementedError
@@ -401,7 +372,7 @@ class Character:
         Enters hitlag for 'frames' frames and stores the data of an attack into the action state to be used when hitstun
         ends and a DI input is recorded
         """
-        self.misc_data.update({'action_state': self.action_state.copy(), 'attack_data': attack_data})
+        self.data.update({'action_state': self.action_state.copy(), 'attack_data': attack_data})
         self.action_state = ['hitlag', frames]
 
     def drift(self, tilt) -> None:
@@ -416,26 +387,26 @@ class Character:
             self.action_state = [action, 0]
         elif self.actionable() and action == 'walk':
             self.action_state = ['walk', 0]
-            self.misc_data.update({'walk_tilt': extra})
+            self.data.update({'walk_tilt': extra})
         elif self.action_state[0] == 'full_dash' and action == 'dash':
             if numpy.sign(self.speed[0]) != numpy.sign(extra):
                 if extra != 0:
                     self.direction = not self.direction
                 self.action_state = ['turnaround', 0]
         elif self.actionable() and action == 'dash':
-            if self.action_state[1] < self.attributes['dash_frames'] and extra != self.misc_data['dash_dir']:
+            if self.action_state[1] < self.attributes['dash_frames'] and extra != self.data['dash_dir']:
                 self.action_state = ['start_dash', 0]
-            self.misc_data.update({'dash_dir': extra})
+            self.data.update({'dash_dir': extra})
         elif self.action_state[0] == 'turnaround' and action == 'dash':
-            self.misc_data.update({'dash_dir': extra})
+            self.data.update({'dash_dir': extra})
         elif action == 'shield_off':
             self.action_state = ['shield_off', extra]
         elif self.actionable() and action == 'airdodge':
             self.action_state = ['airdodge', 0]
-            self.misc_data.update({'angle': extra})
+            self.data.update({'angle': extra})
         elif action == 'auto_wavedash':
             self.action_state[0] = 'auto_wavedash'
-            self.misc_data.update({'angle': extra})
+            self.data.update({'angle': extra})
         elif action == 'roll' and self.action_state[0] == 'shielded':
             if self.direction and extra == 1:
                 self.action_state = ['rollf', 0]
@@ -468,7 +439,7 @@ class Character:
         elif (self.actionable() and action == 'jumpsquat') or \
                 (self.action_state[0] in ('shielded', 'shield_off', 'turnaround') and action == 'jumpsquat'):
             self.action_state = ['jumpsquat', 0]
-            self.misc_data.update({'released': extra})
+            self.data.update({'released': extra})
         elif self.actionable() and action == 'aerial_jump':
             if not self.jumped:
                 self.update_speed(extra * self.attributes['max_hair_speed'], self.attributes['fullhop_velocity'])
@@ -496,9 +467,9 @@ class Phrog(Character):
             self.env_state = 'suspended'
             self.action_state[1] += 1
             if self.action_state[1] == self.moves[self.action_state[0]]['need_input']:
-                self.misc_data.update({'need_input': 0})
+                self.data.update({'need_input': 0})
             elif self.action_state[1] == self.moves[self.action_state[0]]['need_input'] + 1:
-                direction = self.misc_data['need_input']
+                direction = self.data['need_input']
                 self.update_speed(15 * math.cos(direction), 15 * math.sin(direction))
             elif self.moves[self.action_state[0]]['end']> self.action_state[1] >= self.moves[self.action_state[0]]['start']:
                 self.increment_center(self.speed[0], -self.speed[1])
@@ -510,7 +481,7 @@ class Phrog(Character):
             self.action_state[1] += 1
             if self.action_state[1] == 1:
                 if self.moves[self.action_state[0]]['env_state'] == 'any':
-                    self.misc_data.update({'prev_action_state': self.action_state.copy()})
+                    self.data.update({'prev_action_state': self.action_state.copy()})
             elif self.moves[self.action_state[0]]['type'] == 'projectile':
                 for id in self.moves[self.action_state[0]]['ids']:
                     if self.action_state[1] == self.moves[self.action_state[0]]['ids'][id]['start'][0]:
@@ -524,7 +495,7 @@ class Phrog(Character):
             # env_state is 'any', return them to the previous action state
             if self.action_state[1] == self.moves[self.action_state[0]]['end']:
                 if self.moves[self.action_state[0]]['env_state'] == 'any':
-                    self.action_state = self.misc_data['prev_action_state']
+                    self.action_state = self.data['prev_action_state']
                 elif self.moves[self.action_state[0]]['env_state'] == 'airborne':
                     self.action_state = ['jump', 0]
                 elif self.moves[self.action_state[0]]['env_state'] == 'grounded':

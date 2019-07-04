@@ -119,12 +119,12 @@ def handle_hit(character: characters.Character, attack_data: Dict, di=None) -> N
     print(get_DI_diff(direction, influence, KB * KB_LAUNCH_CONVERSION, character.attributes['vair_acc'], KB * HITSTUN))
     if character.env_state == 'grounded' and -180 < direction < 0:
         hitstun = int(KB * HITSTUN)
-        character.misc_data.update({'action_state': ['hitstun', hitstun], 'kb': KB})
+        character.data.update({'action_state': ['hitstun', hitstun], 'kb': KB})
         character.update_speed(math.cos(math.radians(influence)) * KB * KB_LAUNCH_CONVERSION,
                                 -math.sin(math.radians(influence)) * KB * KB_LAUNCH_CONVERSION * GROUND_KB_CONVERSION)
     else:
         hitstun = int(KB * HITSTUN)
-        character.misc_data.update({'action_state': ['hitstun', hitstun], 'kb': KB})
+        character.data.update({'action_state': ['hitstun', hitstun], 'kb': KB})
         character.update_speed(math.cos(math.radians(influence)) * KB * KB_LAUNCH_CONVERSION,
                                    math.sin(math.radians(influence)) * KB * KB_LAUNCH_CONVERSION)
         character.env_state = 'airborne'

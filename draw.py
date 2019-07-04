@@ -57,7 +57,7 @@ def draw_reg_hitbox(screen: pygame.Surface, character: characters.Character, col
 
 def draw_shield(screen: pygame.Surface, character: characters.Character, color: Tuple) -> None:
     pygame.draw.circle(screen, color, [int(i) for i in character.ecb[2]],
-                       int(character.misc_data['shield_health'] * 50 / 86))
+                       int(character.data['shield_health'] * 50 / 86))
 
 
 def draw_stage_lines(screen: pygame.Surface, line_lst: List, color: Tuple, orientation: bool) -> None:
