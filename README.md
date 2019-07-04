@@ -37,7 +37,7 @@
 
 ### Short term
 #### July 02, 2019 - July 07 2019
-- [x] Finish pklTreeView *Finished July 02, 2019*
+- [x] ~~Finish pklTreeView~~ *Finished July 02, 2019*
 - [ ] Redesign/reformat the game
   - [ ] Implement Meter
   - [ ] Reformat character update (with relation to the new pkl files)
