@@ -7,7 +7,7 @@
 
 ## Changelog
 
- ### July 02, 2019
+### July 02, 2019
 - Finished pklTreeView to have all intended features-more may be added as needed.
   - Functionality to edit
     - Copy parts of pkl files
@@ -15,7 +15,7 @@
     - Open and save pkl files
     - Edit values
     
- ### July 03, 2019
+### July 03, 2019
  - Made some minor changes to characters (a full redesign is still needed).
   - character.misc_data -> character.data
   - Attributes such as character.invincible, character.jumped, character.damage were moved into character.data.
@@ -33,7 +33,7 @@
      - Allows user to enter an equation such that the selected items values conform to that equation with values transformed to that equation based on the index (within the selected items) of the value as input. This is the only functionality of special edit currently, however, more will be added if needed.
      
      
- ### July 06, 2019
+### July 06, 2019
   - Created a temporary 'phrog' dbpk file in character_info, accessed through hard-code in characters, to test the ability to access database pickle files.
   - Added squatting to the game, as well as squatting to trigger the check to drop through platforms.
   - Added some animations into the 'phrog' dbpk file, including ftilt, walk, startsquat, airborne, jumpsquat
