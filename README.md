@@ -57,7 +57,7 @@
 ## Task list
 
 ### Short term
-#### July 02, 2019 - July 07 2019
+#### July 02, 2019 - July 09 2019
 - [x] ~~Finish pklTreeView~~ *Finished July 02, 2019*
 - [ ] Redesign/reformat the game
   - [ ] Implement Meter
