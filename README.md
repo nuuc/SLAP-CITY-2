@@ -1,4 +1,4 @@
-# SLAP-CITY-2
+# SUPER SLAM BROTHERS: JAM
 ## Table of contents
 
 [Changelog](#changelog)
