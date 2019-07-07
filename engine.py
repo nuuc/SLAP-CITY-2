@@ -19,7 +19,7 @@ def run(screen: pygame.Surface, char_control_map: Dict, stage: stages.Stage) -> 
     """
     stage.handle_stage(char_control_map)
 
-    char_lst = [c for c in char_control_map]
+    char_lst = [char_control_map[controller] for controller in char_control_map]
 
     draw.developer_draw(screen, char_lst, stage)
     hitbox_collision(char_lst)
@@ -29,53 +29,53 @@ def hitbox_collision(character_lst: List) -> None:
     """
     Detects collision between a character's hitbox and another character's hurtbox.
     """
-    for character in character_lst:
-        _copy = character_lst.copy()
-        _copy.remove(character)
-        other_character = _copy[0]
-        if not other_character.invincible:
-            if not character.hitboxes['regular']['hit']:
-                for id in character.hitboxes['regular']['ids']:
-                    hitbox = character.hitboxes['regular']['ids'][id]
-                    if mf.intersect_list(hitbox, other_character.hurtboxes):
-                        attack_data = character.moves[character.action_state[0]]['ids'][id]['attributes'].copy()
-                        damage = attack_data['damage']
-                        if character.direction:
-                            attack_data.update({'angle': angle_converter(90 - attack_data['angle'])})
-                        else:
-                            attack_data.update({'angle': angle_converter(90 + attack_data['angle'])})
-                        if other_character.action_state[0] != 'shielded':
-                            other_character.damage += damage
-                            other_character.direction = not character.direction
-                            other_character.enter_hitlag(int(damage / 3) + 3, attack_data)
-                            character.enter_hitlag(int(damage / 3) + 3, None)
-                        else:
-                            other_character.misc_data['shield_health'] -= damage
-                            other_character.action_state = ['shieldstun', int((damage + 4.45) * 0.447)]
-                            other_character.speed[0] = (2 * other_character.attributes['traction'] * damage
-                                                            + (-27 * other_character.attributes['traction'] + 3.2))\
-                                                           * numpy.sign(other_character.center[0] - character.center[0])
-                            other_character.enter_hitlag(int(damage / 3) + 3, None)
-                            character.enter_hitlag(int(damage / 3) + 3, None)
-                        character.hitboxes['regular']['hit'] = True
-                        if character.hitboxes['regular']['hit']:
-                            break
-            for id in character.hitboxes['grab']:
-                grab_hitbox = mf.connect_hitbox(character.hitboxes['grab'][id][0],
-                                                character.hitboxes['grab'][id][1],
-                                                character.hitboxes['grab'][id][2])
-                if mf.intersect_list(grab_hitbox, other_character.hurtboxes):
-                    if character.direction:
-                        other_character.update_center(character.ecb[3][0] + 50, character.ecb[0][1])
-                    else:
-                        other_character.update_center(character.ecb[1][0] - 50, character.ecb[0][1])
-                    other_character.direction = not character.direction
-                    other_character.update_ecb()
-                    other_character.update_hurtbox()
-                    other_character.action_state = ['grabbed', 0]
-                    character.misc_data.update({'jack': other_character})
-                    character.hitboxes.update({'grab': {}})
-                    character.action_state = ['grabbing', 0]
+    # for character in character_lst:
+    #     _copy = character_lst.copy()
+    #     _copy.remove(character)
+    #     other_character = _copy[0]
+    #     if not other_character.data['invincible']:
+    #         if not character.hitboxes['regular']['hit']:
+    #             for id in character.hitboxes['regular']['ids']:
+    #                 hitbox = character.hitboxes['regular']['ids'][id]
+    #                 if mf.intersect_list(hitbox, other_character.hurtboxes):
+    #                     attack_data = character.moves[character.action_state[0]]['ids'][id]['attributes'].copy()
+    #                     damage = attack_data['damage']
+    #                     if character.direction:
+    #                         attack_data.update({'angle': angle_converter(90 - attack_data['angle'])})
+    #                     else:
+    #                         attack_data.update({'angle': angle_converter(90 + attack_data['angle'])})
+    #                     if other_character.action_state[0] != 'shielded':
+    #                         other_character.damage += damage
+    #                         other_character.direction = not character.direction
+    #                         other_character.enter_hitlag(int(damage / 3) + 3, attack_data)
+    #                         character.enter_hitlag(int(damage / 3) + 3, None)
+    #                     else:
+    #                         other_character.misc_data['shield_health'] -= damage
+    #                         other_character.action_state = ['shieldstun', int((damage + 4.45) * 0.447)]
+    #                         other_character.speed[0] = (2 * other_character.attributes['traction'] * damage
+    #                                                         + (-27 * other_character.attributes['traction'] + 3.2))\
+    #                                                        * numpy.sign(other_character.center[0] - character.center[0])
+    #                         other_character.enter_hitlag(int(damage / 3) + 3, None)
+    #                         character.enter_hitlag(int(damage / 3) + 3, None)
+    #                     character.hitboxes['regular']['hit'] = True
+    #                     if character.hitboxes['regular']['hit']:
+    #                         break
+    #         for id in character.hitboxes['grab']:
+    #             grab_hitbox = mf.connect_hitbox(character.hitboxes['grab'][id][0],
+    #                                             character.hitboxes['grab'][id][1],
+    #                                             character.hitboxes['grab'][id][2])
+    #             if mf.intersect_list(grab_hitbox, other_character.hurtboxes):
+    #                 if character.direction:
+    #                     other_character.update_center(character.ecb[3][0] + 50, character.ecb[0][1])
+    #                 else:
+    #                     other_character.update_center(character.ecb[1][0] - 50, character.ecb[0][1])
+    #                 other_character.direction = not character.direction
+    #                 other_character.update_ecb()
+    #                 other_character.update_hurtbox()
+    #                 other_character.action_state = ['grabbed', 0]
+    #                 character.misc_data.update({'jack': other_character})
+    #                 character.hitboxes.update({'grab': {}})
+    #                 character.action_state = ['grabbing', 0]
 
             # for projectile in character.hitboxes['projectile']:
             #     if misc_functions.intersect_list(projectile[0], other_character.hurtboxes):

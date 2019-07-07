@@ -1054,7 +1054,7 @@ class Animator:
                 if self.selectedNode.parent.node_type == 'line' and self.selectedNode.node_type == 'line':
                     pygame.draw.circle(screen, (0, 0, 255), pos, int(self.selectedNode.parent.radius))
                     pygame.draw.polygon(screen, (0, 0, 255),
-                                        connecter_hitbox(pos, offsetted, self.selectedNode.parent.radius))
+                                        Node.connecter_hitbox(pos, offsetted, self.selectedNode.parent.radius))
                     pygame.draw.circle(screen, (0, 0, 255), tuple(int(p) for p in offsetted), int(self.radius))
                     pygame.draw.circle(screen, (128, 0, 0), pos, int(self.selectedNode.parent.radius))
                     pygame.draw.circle(screen, (128, 0, 0), tuple(int(p) for p in offsetted), int(self.radius))

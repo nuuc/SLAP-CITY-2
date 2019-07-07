@@ -1,4 +1,4 @@
-import pygame
+import pygame, copy
 from typing import *
 from shapely.geometry import *
 from shapely.ops import *
@@ -41,12 +41,19 @@ def in_relation(center: List, coordinates: List) -> List:
 
 
 def in_relation_poly(poly: Polygon, center: Tuple):
-    return affinity.translate(poly, center[0], center[1])
+    return affinity.translate(copy.deepcopy(poly), center[0], center[1])
 
 
 def in_relation_point(center: List, coordinates: List) -> List:
     return [center[0] + coordinates[0], center[1] + coordinates[1]]
 
+
+def auto_transform(poly: Polygon, direction: bool, center: Tuple) -> Polygon:
+    if not direction:
+        reflected = affinity.affine_transform(copy.deepcopy(poly), [-1, 0, 0, 1, 0, 0])
+        return in_relation_poly(reflected, center)
+    else:
+        return in_relation_poly(poly, center)
 
 def hitbox_rotate(center: List, hitbox: Polygon, direction: bool, angle: float) -> Polygon:
     if not direction:

@@ -1,4 +1,4 @@
-import pygame, characters, stages, game_loop
+import pygame, characters, stages, loops
 from typing import *
 
 pygame.font.init()
@@ -19,13 +19,13 @@ def developer_draw(screen: pygame.Surface, character_lst: List[characters.Charac
     # Draw character specific hit/hurtboxes, etc.
     for character in character_lst:
         # Initialize damage, action state
-        damage = font.render(str(character.damage), True, BLACK)
+        damage = font.render(str(character.data['damage']), True, BLACK)
         state = font.render(str(character.action_state), True, BLACK)
 
         # Draw hurt
         draw_hurtbox(screen, character, BLACK)
         draw_reg_hitbox(screen, character, RED)
-        draw_ecb(screen, character, GRAY)
+        # draw_ecb(screen, character, GRAY)
 
         if character.action_state[0] in ('shielded', 'hitstun'):
             draw_shield(screen, character, PINK)
@@ -36,7 +36,7 @@ def developer_draw(screen: pygame.Surface, character_lst: List[characters.Charac
     draw_stage_lines(screen, stage.floor, GREEN, True)
     draw_stage_lines(screen, stage.walls, BLUE, False)
 
-    fps = font.render(str(round(game_loop.clock.get_fps())), True, BLACK)
+    fps = font.render(str(round(loops.clock.get_fps())), True, BLACK)
     screen.blit(fps, (0, 0))
 
     pygame.display.update()
@@ -51,8 +51,9 @@ def draw_hurtbox(screen: pygame.Surface, character: characters.Character, color:
 
 
 def draw_reg_hitbox(screen: pygame.Surface, character: characters.Character, color: Tuple) -> None:
-    for regular_hitbox in character.hitboxes['regular']['ids']:
-        pygame.draw.polygon(screen, color, list(regular_hitbox.exterior.coords))
+    for ids in character.hitboxes['regular']['hitboxPolys']:
+        pygame.draw.polygon(screen, color,
+                            list(character.hitboxes['regular']['hitboxPolys'][ids]['polygon'].exterior.coords))
 
 
 def draw_shield(screen: pygame.Surface, character: characters.Character, color: Tuple) -> None:

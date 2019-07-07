@@ -1,4 +1,4 @@
-import controller_handler, characters
+import controller_handler, characters, loops
 from typing import *
 
 KD_THRESHOLD = 80
@@ -43,15 +43,15 @@ class Stage:
         """
         Handles stage interactions.
         """
-        for character in char_control_map:
-            char_input = controller_handler.controller_input[char_control_map[character]]
+        for controller in char_control_map:
+            character = char_control_map[controller]
             prev_ecb = character.ecb.copy()
             character.update()
             center = character.center
             ecb = character.ecb
             copy = char_control_map.copy()
-            del copy[character]
-            other_character = list(copy.keys())[0]
+            del copy[controller]
+            other_character = list(copy.values())[0]
             for floor in self.floor:
                 x_bounds = [floor[0], floor[1]]
                 y_level = floor[2]
@@ -60,41 +60,42 @@ class Stage:
                         if character.action_state[0] == 'airdodge':
                             character.update_speed(character.speed[0], 0)
                             character.action_state = ['waveland', 0]
-                            character.misc_data.update({'wavelanding': True})
+                            character.data.update({'sliding': True})
                             character.env_state = 'grounded'
-                            character.misc_data['invincibility'] = 0
+                            character.data['invincibility'] = 0
                             character.update_ecb()
                             character.update_center(center[0], y_level + (center[1] - character.ecb[0][1]))
                             character.jumped = False
 
-                        elif (character.action_state[0] == 'hitstun' and character.misc_data['kb'] >= KD_THRESHOLD) \
+                        elif (character.action_state[0] == 'hitstun' and character.data['kb'] >= KD_THRESHOLD) \
                                 or character.action_state[0] == 'tumble':
                             character.env_state = 'grounded'
                             character.update_ecb()
                             character.update_center(center[0], y_level + (center[1] - character.ecb[0][1]))
                             character.jumped = False
-                            if character.misc_data['tech'] >= 0:
-                                character.misc_data.update({'wavelanding': False})
-                                character.action('techroll', char_input.controller_mapping(char_input.get_axis(0),
-                                                                                           char_input.get_axis(1),
-                                                                                           0.3)[0])
+                            if character.data['tech'] >= 33:
+                                character.data.update({'sliding': False})
+                                if isinstance(controller, controller_handler.Joystick):
+                                    character.action('techroll', controller.map_axes('control')[0])
+                                elif isinstance(controller, controller_handler.Keyboard):
+                                    character.action('techroll', controller.get_vaxis('x'))
                             else:
                                 character.action_state = ['kd_bounce', 25]
                                 character.update_speed(character.speed[0] * 0.5)
 
-                        elif (not char_input.get_axis(1) <= -0.3 or not floor[3]) \
-                                or (character.action_state[0] == 'hitstun' and character.misc_data['kb'] < KD_THRESHOLD):
+                        elif (not controller.get_axis('y') <= -0.3 or not floor[3]) \
+                                or (character.action_state[0] == 'hitstun' and character.data['kb'] < KD_THRESHOLD):
                             character.update_speed(character.speed[0], 0)
                             character.jumped = False
-                            character.misc_data.update({'wavelanding': True})
-                            character.action_state = ['lag', character.misc_data['landing_lag']]
-                            character.misc_data.update({'landing_lag': characters.UNIV_LANDING_LAG})
+                            character.data['sliding'] = True
+                            character.action_state = ['lag', character.data['landing_lag']]
+                            character.data['landing_lag'] = characters.UNIV_LANDING_LAG
                             character.env_state = 'grounded'
                             character.update_ecb()
                             character.update_center(center[0], y_level + (center[1] - character.ecb[0][1]))
-                            character.hitboxes['regular'].update({'hit': True, 'ids': {}})
+                            character.hitboxes['regular'] = {'hitboxPolys': {}, 'hit': False}
 
-                    elif char_input.get_axis_change(1, 0.25, 0.3) and char_input.axis_list[0][1] < 0 \
+                    elif character.action_state[0] == 'squat' and controller.map_axes('control')[1] == -1 \
                             and ecb[0][1] == y_level and floor[3]:
                         character.action_state = ['jump', 0]
                         character.env_state = 'airborne'
@@ -136,8 +137,8 @@ class Stage:
                 # 1) Improve logic
                 # 2) Make code less messy
                 if character.env_state == 'airborne' and character.direction == ledges[2] \
-                        and character.speed[1] < 0 and not char_input.get_axis(1) <= -0.3 \
-                        and not other_character.misc_data['on_ledge'] == ledges:
+                        and character.speed[1] < 0 and not controller.get_axis('y') <= -0.3 \
+                        and not other_character.data['on_ledge'] == ledges:
                     if center[1] - character.attributes['edge_link'][2] > ledges[1] > \
                          center[1] - character.attributes['edge_link'][2] - character.attributes['edge_link'][1]:
                         if character.direction:
@@ -147,7 +148,7 @@ class Stage:
                                 character.update_ecb()
                                 character.update_center(ledges[0] - (character.ecb[3][0] - character.center[0]),
                                                         ledges[1] + (character.center[1] - character.ecb[2][1]))
-                                character.misc_data.update({'on_ledge': ledges})
+                                character.data['on_ledge'] = ledges
                         else:
                             if center[0] > ledges[0] > center[0] - character.attributes['edge_link'][0]:
                                 character.action_state = ['ledge_grab', 7]
@@ -155,7 +156,7 @@ class Stage:
                                 character.update_ecb()
                                 character.update_center(ledges[0] + (character.center[0] - character.ecb[1][0]),
                                                         ledges[1] + (character.center[1] - character.ecb[2][1]))
-                                character.misc_data.update({'on_ledge': ledges})
+                                character.data['on_ledge'] = ledges
 
 
 class Battlefield(Stage):

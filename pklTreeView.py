@@ -122,7 +122,8 @@ class TKTree:
         self.pklTreePointer = {id(pklTreeRoot): pklTreeRoot}
 
         self.tkTree = ttk.Treeview(root, height=40)
-        self.load(pklTreeRoot)
+        if pklTreeRoot is not None:
+            self.load(pklTreeRoot)
 
         self.logs = []
         self.rlogs = []
@@ -146,15 +147,10 @@ class TKTree:
 
         editmenu = Menu(menubar, tearoff=0)
         editmenu.add_command(label="Undo", accelerator='Control+Z', command=self.ctrlz)
-        self.tkTree.bind('<Control-z>', self.undo)
         editmenu.add_command(label="Redo", accelerator='Control+Shift+Z', command=self.ctrlsz)
-        self.tkTree.bind('<Control-Z>', self.redo)
         editmenu.add_command(label="Copy", accelerator='Control+C', command=self.ctrlc)
-        self.tkTree.bind('<Control-c>', self.copy)
         editmenu.add_command(label="Paste", accelerator='Control+V', command=self.ctrlv)
-        self.tkTree.bind('<Control-v>', self.paste)
         editmenu.add_command(label="Delete", accelerator='Control+X', command=self.ctrlx)
-        self.tkTree.bind('<Control-x>', self.delete)
         menubar.add_cascade(label="Edit", menu=editmenu)
 
         helpmenu = Menu(menubar, tearoff=0)
@@ -167,41 +163,56 @@ class TKTree:
         self.tkTree.heading('#0', text='key')
         self.tkTree.heading('type', text='type')
         self.tkTree.heading('value', text='value')
+        self.tkTree.bind('<Control-z>', self.undo)
+        self.tkTree.bind('<Control-Z>', self.redo)
+        self.tkTree.bind('<Control-c>', self.copy)
         self.tkTree.bind('<B1-Motion>', self.move)
-        self.tkTree.bind('e', self.edit)
+        self.tkTree.bind('<Control-v>', self.paste)
+        self.tkTree.bind('<Control-x>', self.delete)
+        self.tkTree.bind('<Control-e>', self.edit)
         self.tkTree.bind('r', self.rrefresh)
-        self.tkTree.bind('s', self.selective_select_dialog)
         self.tkTree.grid(row=0, column=0, columnspan=20, rowspan=16)
 
         special_edit = ttk.Button(root, text='Special edit', width=20)
-        special_edit.grid(row=0, column=21)
-        special_edit.bind('<Button-1>', self.special_edit_dialog)
         edit_multiple = ttk.Button(root, text='Edit Multiple Values', width=20)
-        edit_multiple.grid(row=0, column=22)
-        edit_multiple.bind('<Button-1>', self.multi_edit)
         add_entry = ttk.Button(root, text='Add entry', width=20)
-        add_entry.grid(row=1, column=21)
-        add_entry.bind('<Button-1>', self.add_entry_dialog)
         selective_search = ttk.Button(root, text='Select with keyword', width=20)
+
+        special_edit.grid(row=0, column=21)
+        edit_multiple.grid(row=0, column=22)
+        add_entry.grid(row=1, column=21)
         selective_search.grid(row=1, column=22)
+
+        special_edit.bind('<Button-1>', self.special_edit_dialog)
+        edit_multiple.bind('<Button-1>', self.multi_edit)
+        add_entry.bind('<Button-1>', self.add_entry_dialog)
         selective_search.bind('<Button-1>', self.selective_select_dialog)
 
     def open_file(self):
         file = filedialog.askopenfilename(initialdir=root_path, title='Select file',
-                                          filetypes=(('PolyPickle Files', '*.plypk'), ('All files', '*.*')))
+                                          filetypes=(('PolyPickle Files', '*.plypk'),
+                                                     ('DatabasePickle Files', '*.dbpk'),
+                                                     ('All Files', '*.*')))
         name = os.path.splitext(os.path.basename(file))[0]
 
         popup = Toplevel(root)
+        style = ttk.Style()
+        style.theme_use('clam')
         popup.geometry('200x100+600+50')
         popup.wm_title('Progress')
 
         progressbar = ttk.Progressbar(popup, orient='horizontal', length=100, mode='indeterminate')
         progressbar.pack()
+
         if file != '' and file is not None:
             with open(file, 'rb') as pkl:
-                item = PklTreeItem().load(pickle.load(pkl), self.pklTreeRoot, name)
-                self.load(item, self.pklTreeRoot)
-                self.pklTreeRoot.appendChild(item)
+                if self.pklTreeRoot is not None:
+                    item = PklTreeItem().load(pickle.load(pkl), self.pklTreeRoot, name)
+                    self.load(item, self.pklTreeRoot)
+                    self.pklTreeRoot.appendChild(item)
+                else:
+                    item = PklTreeItem().load(pickle.load(pkl), name=name)
+                    self.load(item)
 
         popup.destroy()
 
@@ -213,6 +224,8 @@ class TKTree:
         if file == '':
             return
         popup = Toplevel(root)
+        style = ttk.Style()
+        style.theme_use('clam')
         popup.geometry('200x100+600+50')
         popup.wm_title('Progress')
 
@@ -252,6 +265,8 @@ class TKTree:
         column = self.tkTree.identify_column(self.tkTree.winfo_pointerxy()[0] - self.tkTree.winfo_rootx())
         tree_selection = self.tkTree.selection()[0]
         selection = self.lookup(tree_selection)
+        style = ttk.Style()
+        style.theme_use('clam')
         value = simpledialog.askstring('Edit', 'Edit Value:')
         if value != '' and value is not None:
             if column == '#0':
@@ -267,6 +282,8 @@ class TKTree:
     def multi_edit(self, event):
         self.log()
         tree_selection = self.tkTree.selection()
+        style = ttk.Style()
+        style.theme_use('clam')
         value = simpledialog.askstring('Edit', 'Edit Value:')
         for item in tree_selection:
             selection = self.lookup(item)
@@ -299,12 +316,18 @@ class TKTree:
         tree_selection = self.tkTree.selection()
         for item in tree_selection:
             pkl_item = self.lookup(item)
-            pkl_item.Parent.Children.remove(pkl_item)
-            del self.pklTreePointer[int(item)]
-            del pkl_item
-            self.tkTree.delete(item)
+            if pkl_item is not self.pklTreeRoot:
+                pkl_item.Parent.Children.remove(pkl_item)
+                del self.pklTreePointer[int(item)]
+                del pkl_item
+                self.tkTree.delete(item)
+            else:
+                self.pklTreeRoot = None
+                self.tkTree.delete(item)
 
     def add_entry_dialog(self, event):
+        style = ttk.Style()
+        style.theme_use('clam')
         self.entry = Toplevel(root)
         self.entry.geometry('400x100+600+50')
         Label(self.entry, text='Key:').grid(row=0, column=0)
@@ -313,6 +336,7 @@ class TKTree:
         self.equation = Entry(self.entry)
         self.equation.grid(row=1, column=0)
         self._type = ttk.Combobox(self.entry, values=('int', 'str', 'list', 'dict'))
+        self._type.current(0)
         self._type.grid(row=1, column=1)
         self.value = Entry(self.entry)
         self.value.grid(row=1, column=2)
@@ -322,19 +346,31 @@ class TKTree:
 
     def tadd_entry(self):
         self.log()
-        self.add_entry(self.equation.get(), self._type.current(1), self.value.get())
+        self.add_entry(self.equation.get(), self._type.get(), self.value.get())
         self.entry.destroy()
         self.equation = self._type = self.value = None
 
     def tadd_entry_children(self):
         self.log()
-        self.add_entry_children(self.equation.get(), self._type.current(1), self.value.get())
+        self.add_entry_children(self.equation.get(), self._type.get(), self.value.get())
         self.entry.destroy()
         self.equation = self._type = self.value = None
 
     def add_entry(self, key, _type, value, pre_selection=None):
         if pre_selection is None:
             tree_selection = self.tkTree.selection()
+            if not tree_selection:
+                if self.pklTreeRoot is None:
+                    entry = PklTreeItem()
+                    entry.setKey(key)
+                    entry.setType(_type)
+                    entry.setValue(value)
+                    self.pklTreeRoot = entry
+                    entry_id = id(entry)
+                    self.pklTreePointer[entry_id] = entry
+                    self.tkTree.insert('', '0', entry_id, text=entry.key())
+                    self.tkTree.item(entry_id, values=(entry.type(), entry.value()))
+
             for item in tree_selection:
                 selection = self.lookup(item)
                 entry = PklTreeItem(selection)
@@ -366,6 +402,8 @@ class TKTree:
 
     def selective_select_dialog(self, event):
         self.popup = Toplevel(root)
+        style = ttk.Style()
+        style.theme_use('clam')
         self.popup.geometry('175x75+600+50')
         Label(self.popup, text='Key:').grid(row=0, column=0, columnspan=2)
         self.equation = Entry(self.popup)
@@ -389,6 +427,8 @@ class TKTree:
 
     def special_edit_dialog(self, event):
         self.popup = Toplevel(root)
+        style = ttk.Style()
+        style.theme_use('clam')
         self.popup.geometry('175x75+600+50')
         Label(self.popup, text='Equation:').grid(row=0, column=0)
         self.equation = Entry(self.popup)
@@ -415,10 +455,13 @@ class TKTree:
         return pointer
 
     def pklTree_copy(self):
-        pklTreeRoot_copy = copy.deepcopy(self.pklTreeRoot)
-        pklTreePointer_copy = copy.deepcopy(self.pklTreePointer)
-        pointer_mapping = self.return_pointer_mapping(self.pklTreeRoot, pklTreeRoot_copy)
-        return [pklTreeRoot_copy, pklTreePointer_copy, pointer_mapping]
+        try:
+            pklTreeRoot_copy = copy.deepcopy(self.pklTreeRoot)
+            pklTreePointer_copy = copy.deepcopy(self.pklTreePointer)
+            pointer_mapping = self.return_pointer_mapping(self.pklTreeRoot, pklTreeRoot_copy)
+            return [pklTreeRoot_copy, pklTreePointer_copy, pointer_mapping]
+        except:
+            return [None, {}, {}]
 
     def log(self, log=None):
         if log is None:
@@ -524,16 +567,6 @@ if __name__ == '__main__':
     root = Tk()
     root.geometry('900x800+600+50')
 
-    mainPklTree = PklTreeItem()
-    mainPklTree.setKey('main')
-    mainPklTree.setType('dict')
-    mainPklTree.setValue('None')
-
-    tktree = TKTree(root, mainPklTree)
-
-    with open('C:/Users/Tony/PycharmProjects/experimental branch v0.22/assets/jumpboitest.plypk', 'rb') as pkl:
-        item = PklTreeItem().load(pickle.load(pkl), tktree.pklTreeRoot, 'jumpboitest')
-        tktree.load(item, tktree.pklTreeRoot)
-        tktree.pklTreeRoot.appendChild(item)
+    tktree = TKTree(root)
 
     root.mainloop()
