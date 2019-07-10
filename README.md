@@ -7,15 +7,18 @@
 
 ## Changelog
 
+
 ### July 09, 2019
   - Reimplemented engine's hit handler within the new framework.
   - Renamed a couple of functions to better reflect what they do.
   - Removed constructor parameters from Character and its inheritor's init.
   - Platform dropping now checks for an input on the last frame of initiating the squat animation.
     - Allows for squatting on platforms much more easily.
+ 
 #### July 09, 2019 Notes
   - Did not meet this week's short term goals, however I plan on catching up next week, in addition to implementing all basic features.
   - Attempting to finish all of next week's shert term goals before I go on vacation.
+
 
 ### July 06, 2019
   - Created a temporary 'phrog' dbpk file in character_info, accessed through hard-code in characters, to test the ability to access database pickle files.
@@ -37,6 +40,7 @@
    - The ControllerHandler class initializes with a character-control map dictionary of {Controller: Character} and a button-mapping map to map which controller maps to which button mapping.
      - It has one method, which is to handle the controls based on what type of Controller it is, and although unimplemented, it will handle also based on the Controller options
 
+
 ### July 03, 2019
  - Made some minor changes to characters (a full redesign is still needed).
   - character.misc_data -> character.data
@@ -54,6 +58,7 @@
     - Special edit button added.
      - Allows user to enter an equation such that the selected items values conform to that equation with values transformed to that equation based on the index (within the selected items) of the value as input. This is the only functionality of special edit currently, however, more will be added if needed.
 
+
 ### July 02, 2019
 - Finished pklTreeView to have all intended features-more may be added as needed.
   - Functionality to edit
@@ -61,6 +66,7 @@
     - Move parts of pkl files
     - Open and save pkl files
     - Edit values
+
 
 ## Task list
 
