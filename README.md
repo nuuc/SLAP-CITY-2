@@ -14,7 +14,7 @@
   - Removed constructor parameters from Character and its inheritor's init.
   - Platform dropping now checks for an input on the last frame of initiating the squat animation.
     - Allows for squatting on platforms much more easily.
- 
+
 #### July 09, 2019 Notes
   - Did not meet this week's short term goals, however I plan on catching up next week, in addition to implementing all basic features.
   - Attempting to finish all of next week's shert term goals before I go on vacation.
