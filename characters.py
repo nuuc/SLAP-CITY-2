@@ -46,7 +46,7 @@ class Character:
         self.direction = False
         self.ecb = []
         self.env_state = 'airborne'
-        self.hitboxes = {'regular': {'hitboxPolys': {}, 'hit': False}, 'projectile': []}
+        self.hitboxes = {'regular': {'hit': True, 'ids': {}}, 'projectile': []}
         self.data = {'shield_health': 86, 'invincible': False, 'invincibility': 0, 'need_input': -1, 'on_ledge': 0,
                      'sliding': False, 'landing_lag': UNIV_LANDING_LAG, 'dash_dir': 0, 'ASDI': 0,
                      'meter': 0, 'jumped': False, 'damage': 0, 'needed_input': 0, 'tech': 0, 'kb': 0, 'jump_speed': 0}
@@ -74,7 +74,7 @@ class Character:
             elif self.data['shield_health'] > 86:
                 self.data['shield_health'] = 86
 
-    def _hASDI(self) -> None:
+    def _hhitlag(self) -> None:
         if self.action_state[0] == 'hitlag':
             self.action_state[1] -= 1
             if self.action_state[1] == 0:
@@ -87,9 +87,9 @@ class Character:
         if self.data['sliding']:
             if not self.speed[0] == 0:
                 if abs(self.speed[0]) > self.attributes['high_traction_speed']:
-                    self.speed[0] = dir_inc(self.speed[0], -2 * self.attributes['traction'], 0)
+                    self.speed[0] = cross_inc(self.speed[0], -2 * self.attributes['traction'], 0)
                 else:
-                    self.speed[0] = dir_inc(self.speed[0], -self.attributes['traction'], 0)
+                    self.speed[0] = cross_inc(self.speed[0], -self.attributes['traction'], 0)
                 self.increment_center(self.speed[0])
 
     def _hwalk(self) -> None:
@@ -159,7 +159,7 @@ class Character:
 
     def _hjump(self) -> None:
         self.action_state[1] += 1
-        self.increment_center(dir_inc(self.speed[0], -2 * self.attributes['traction'], 0))
+        self.increment_center(cross_inc(self.speed[0], -2 * self.attributes['traction'], 0))
         if self.action_state[1] > JUMPSQUAT_FRAME:
             self.env_state = 'airborne'
             if self.data['released']:
@@ -191,14 +191,14 @@ class Character:
             self.speed[0] = 0
         else:
             if self.speed[0] >= self.attributes['high_traction_speed']:
-                self.update_speed(dir_inc(self.speed[0], -2 * self.attributes['traction'], 0))
+                self.update_speed(cross_inc(self.speed[0], -2 * self.attributes['traction'], 0))
             else:
-                self.update_speed(dir_inc(self.speed[0], -self.attributes['traction'], 0))
+                self.update_speed(cross_inc(self.speed[0], -self.attributes['traction'], 0))
             self.increment_center(self.speed[0])
 
     def _hkd_bounce(self) -> None:
         self.data.update({'wavelanding': False})
-        self.update_speed(dir_inc(self.speed[0], -self.attributes['air_friction'], 0))
+        self.update_speed(cross_inc(self.speed[0], -self.attributes['air_friction'], 0))
         self.increment_center(self.speed[0])
         self.action_state[1] -= 1
         if self.action_state[1] == 0:
@@ -223,18 +223,22 @@ class Character:
             self.action_state[1] += 1
             move = self.moves[self.action_state[0]]
             frame_data = move['frame data']
-            if self.action_state[1] > len(frame_data) - 1:
+
+            if self.action_state[1] == 1:
+                self.hitboxes['regular']['hit'] = False
+            elif self.action_state[1] > len(frame_data) - 1:
                 self.action_state = ['wait', 0]
-                self.hitboxes['regular'] = {'hitboxPolys': {}, 'hit': False}
+                self.hitboxes['regular'] = {'hit': True, 'ids': {}}
             else:
+                self.increment_center(dir_value(frame_data[self.action_state[1]]['increment'][0], self.direction),
+                                      frame_data[self.action_state[1]]['increment'][1])
                 if move['type'] == 'regular hitbox':
-                    self.hitboxes['regular']['hitboxPolys'] = \
-                        copy.deepcopy(frame_data[self.action_state[1]]['hitboxPolys'])
+                    self.hitboxes['regular']['ids'] = copy.deepcopy(frame_data[self.action_state[1]]['hitboxPolys'])
                     for ids in frame_data[self.action_state[1]]['hitboxPolys']:
                         hitboxPoly = frame_data[self.action_state[1]]['hitboxPolys'][ids]['polygon']
-                        self.hitboxes['regular']['hitboxPolys'][ids]['polygon'] = auto_transform(hitboxPoly,
-                                                                                                 self.direction,
-                                                                                                 tuple(self.center))
+                        self.hitboxes['regular']['ids'][ids]['polygon'] = auto_transform(hitboxPoly,
+                                                                                         self.direction,
+                                                                                         tuple(self.center))
 
     def _hairdodge(self) -> None:
         self.action_state[1] += 1
@@ -253,11 +257,11 @@ class Character:
             self.action_state = ['freefall', 0]
 
     def _hhitstun(self) -> None:
-        self.speed = [dir_inc(self.speed[0], 0.19, 0), dir_inc(self.speed[1], -self.attributes['vair_acc'],
-                                                               -self.attributes['max_vair_speed'])]
+        self.speed = [cross_inc(self.speed[0], 0.19, 0), cross_inc(self.speed[1], -self.attributes['vair_acc'],
+                                                                   -self.attributes['max_vair_speed'])]
         self.increment_center(self.speed[0], -self.speed[1])
         self.action_state[1] -= 1
-        if self.action_state[1] == 0:
+        if self.action_state[1] <= 0:
             if self.data['kb'] < 80:
                 self.action_state = ['jump', 0]
             else:
@@ -345,7 +349,7 @@ class Character:
         self._htech()
         self._hprojectile()
         self._hshield()
-        self._hASDI()
+        self._hhitlag()
 
         if self.env_state == 'grounded':
             self._hsliding()
@@ -449,7 +453,7 @@ class Character:
     def handle_airborne_speed(self):
         self.increment_speed(0, -self.attributes['vair_acc'])
         if abs(self.speed[0]) > self.attributes['max_hair_speed']:
-            self.speed[0] = dir_inc(self.speed[0], -self.attributes['hair_acc'] / 4, 0)
+            self.speed[0] = cross_inc(self.speed[0], -self.attributes['hair_acc'] / 4, 0)
         if self.speed[1] < -self.attributes['max_vair_speed']:
             self.speed[1] = -self.attributes['max_vair_speed']
         self.increment_center(self.speed[0], -self.speed[1])
@@ -470,9 +474,9 @@ class Character:
     def drift(self, tilt) -> None:
         set_spd = tilt * self.attributes['max_hair_speed']
         if set_spd == 0:
-            self.update_speed(dir_inc(self.speed[0], -self.attributes['air_friction'], 0))
+            self.update_speed(cross_inc(self.speed[0], -self.attributes['air_friction'], 0))
         elif self.speed[0] != set_spd:
-            self.update_speed(dir_inc(self.speed[0], -self.attributes['hair_acc'], set_spd))
+            self.update_speed(cross_inc(self.speed[0], -self.attributes['hair_acc'], set_spd))
 
     def action(self, action: str, extra=None) -> None:
         if self.actionable() and extra is None:
@@ -541,7 +545,7 @@ class Character:
 
 class Dummy(Character):
 
-    def __init__(self, center: List[int], direction: bool, action_state: List, env_state: str) -> None:
+    def __init__(self) -> None:
         super(Dummy, self).__init__()
         self.hurtboxes = Polygon([(-30, 0), (30, 0), (30, -60), (-30, -60)])
         self.hitboxes = {'regular': {'hit': True, 'ids': {}}, 'grab': {}, 'projectiles': []}
@@ -621,35 +625,34 @@ class Dummy(Character):
         '''
         Set hurtboxes equal to some polygon defined in %character data%
         '''
-        if self.env_state == 'grounded':
+        if self.action_state[0] == 'hitlag':
+            if self.data['attack_data'] is None:
+                prev_action_state = self.data['action_state']
+                hurtboxPoly = self.moves[prev_action_state[0]]['frame data'][prev_action_state[1]]['hurtboxPoly']
+            else:
+                # Supposed to be a hitlag animation
+                hurtboxPoly = dummy_data['animations']['walk'][0]['hurtboxPoly']
+        elif self.env_state == 'grounded':
             if self.action_state[0] == 'walk':
                 hurtboxPoly = dummy_data['animations']['walk'][self.action_state[1]]['hurtboxPoly']
-                self.hurtboxes = auto_transform(hurtboxPoly, self.direction, tuple(self.center))
             elif self.action_state[0] == 'jumpsquat':
                 hurtboxPoly = dummy_data['animations']['jump'][self.action_state[1] - 1]['hurtboxPoly']
-                self.hurtboxes = auto_transform(hurtboxPoly, self.direction, tuple(self.center))
             elif self.action_state[0] == 'startsquat':
                 hurtboxPoly = dummy_data['animations']['startsquat'][self.action_state[1] - 1]['hurtboxPoly']
-                self.hurtboxes = auto_transform(hurtboxPoly, self.direction, tuple(self.center))
             elif self.action_state[0] == 'squat':
                 hurtboxPoly = dummy_data['animations']['startsquat'][3]['hurtboxPoly']
-                self.hurtboxes = auto_transform(hurtboxPoly, self.direction, tuple(self.center))
             elif self.action_state[0] in self.moves:
                 hurtboxPoly = self.moves[self.action_state[0]]['frame data'][self.action_state[1]]['hurtboxPoly']
-                self.hurtboxes = auto_transform(hurtboxPoly, self.direction, tuple(self.center))
             else:
                 hurtboxPoly = dummy_data['animations']['walk'][0]['hurtboxPoly']
-                self.hurtboxes = auto_transform(hurtboxPoly, self.direction, tuple(self.center))
         elif self.env_state == 'airborne':
             if self.action_state[0] == 'jump':
                 hurtboxPoly = dummy_data['animations']['airborne'][0]['hurtboxPoly']
-                self.hurtboxes = auto_transform(hurtboxPoly, self.direction, tuple(self.center))
             else:
                 hurtboxPoly = dummy_data['animations']['walk'][0]['hurtboxPoly']
-                self.hurtboxes = auto_transform(hurtboxPoly, self.direction, tuple(self.center))
         else:
             hurtboxPoly = dummy_data['animations']['walk'][0]['hurtboxPoly']
-            self.hurtboxes = auto_transform(hurtboxPoly, self.direction, tuple(self.center))
+        self.hurtboxes = auto_transform(hurtboxPoly, self.direction, tuple(self.center))
 
 
 

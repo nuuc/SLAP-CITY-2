@@ -8,7 +8,7 @@ while not loops.check_exit():
     # for event in pygame.event.get():
     #     if event.type == pygame.KEYDOWN:
     #         if event.key == pygame.K_LEFT:
-    #             game_loop.loop(screen)
+    #             loops.game_loop(screen)
 
     loops.game_loop(screen)
 

@@ -156,7 +156,7 @@ class Keyboard(Controller):
             self.vaxis_mapping = InputMapping({'up': pygame.K_w, 'down': pygame.K_s, 'left': pygame.K_a,
                                                'right': pygame.K_d}, 'default')
 
-    def get_vaxis(self, axis: str) -> float:
+    def get_vaxis(self, axis: str) -> int:
         return self.vaxis_list[0][axis]
 
     def update(self) -> None:
@@ -318,11 +318,12 @@ class ControllerHandler:
                         character.action('aerial_jump', dctrl_stick_map[0])
 
                     elif action_state[0] in ('hitstun', 'tumble'):
-                        if controller.get_axis('ltrigger') >= 0 and character.data['tech'] == 0:
+                        if controller.get_axis('lanalog') >= 0 and character.data['tech'] == 0:
                             character.data['tech'] = 40
 
                 if action_state[0] == 'hitlag' and action_state[1] == 1 and character.data['attack_data'] is not None:
-                    if dctrl_stick_map != [0, 0]:
+                    if controller.map_axes('control', 0.4) != (0, 0):
+                        print('what, really?', controller.map_axes('control', 0.4))
                         engine.handle_hit(character, character.data['attack_data'], Joystick.get_angle(ctrl_stick))
                         character.data['ASDI'] = controller.get_angle(ctrl_stick)
                     else:

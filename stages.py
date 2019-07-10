@@ -93,9 +93,11 @@ class Stage:
                             character.env_state = 'grounded'
                             character.update_ecb()
                             character.update_center(center[0], y_level + (center[1] - character.ecb[0][1]))
-                            character.hitboxes['regular'] = {'hitboxPolys': {}, 'hit': False}
+                            character.hitboxes['regular'] = {'ids': {}, 'hit': True}
 
-                    elif character.action_state[0] == 'squat' and controller.map_axes('control')[1] == -1 \
+                    elif ((character.action_state[0] == 'startsquat' and character.action_state[1] == 3) \
+                            or character.action_state[0] in ('shielded', 'shield_off')) \
+                            and controller.map_axes('control', 0.45)[1] == -1 \
                             and ecb[0][1] == y_level and floor[3]:
                         character.action_state = ['jump', 0]
                         character.env_state = 'airborne'

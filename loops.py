@@ -1,7 +1,7 @@
 import pygame, controller_handler, characters, engine, stages
 font = pygame.font.SysFont('Comic Sans MS', 30)
-tony = characters.Dummy([500, 200], False, ['jump', 0], 'airborne')
-ben = characters.Dummy([600, 200], False, ['jump', 0], 'airborne')
+tony = characters.Dummy()
+ben = characters.Dummy()
 tony.center = [500, 500]
 ben.center = [600, 500]
 default_mapping = {'a': 1, 'b': 2, 'y': 3, 'x': 0, 'rtrigger': 4, 'ltrigger': 5, 'dpadup': 12, 'dpaddown': 14,

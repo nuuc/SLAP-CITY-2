@@ -27,7 +27,8 @@ def developer_draw(screen: pygame.Surface, character_lst: List[characters.Charac
         draw_reg_hitbox(screen, character, RED)
         # draw_ecb(screen, character, GRAY)
 
-        if character.action_state[0] in ('shielded', 'hitstun'):
+        if character.action_state[0] in ('shielded', 'shieldstun') \
+                or (character.action_state[0] == 'hitlag' and character.data['action_state'][0] == 'shieldstun'):
             draw_shield(screen, character, PINK)
 
         screen.blit(damage, (300 + character_lst.index(character) * 250, 550))
@@ -51,9 +52,9 @@ def draw_hurtbox(screen: pygame.Surface, character: characters.Character, color:
 
 
 def draw_reg_hitbox(screen: pygame.Surface, character: characters.Character, color: Tuple) -> None:
-    for ids in character.hitboxes['regular']['hitboxPolys']:
+    for ids in character.hitboxes['regular']['ids']:
         pygame.draw.polygon(screen, color,
-                            list(character.hitboxes['regular']['hitboxPolys'][ids]['polygon'].exterior.coords))
+                            list(character.hitboxes['regular']['ids'][ids]['polygon'].exterior.coords))
 
 
 def draw_shield(screen: pygame.Surface, character: characters.Character, color: Tuple) -> None:

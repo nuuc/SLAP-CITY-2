@@ -55,13 +55,14 @@ def auto_transform(poly: Polygon, direction: bool, center: Tuple) -> Polygon:
     else:
         return in_relation_poly(poly, center)
 
+
 def hitbox_rotate(center: List, hitbox: Polygon, direction: bool, angle: float) -> Polygon:
     if not direction:
         angle *= -1
     return affinity.rotate(hitbox, angle, tuple(center))
 
 
-def dir_inc(value: float, increment: float, cross: float) -> float:
+def cross_inc(value: float, increment: float, cross: float) -> float:
     if value > cross:
         value += increment
         if value < cross:
@@ -73,6 +74,12 @@ def dir_inc(value: float, increment: float, cross: float) -> float:
             return cross
         return value
     return value
+
+
+def dir_value(value: float, direction: bool) -> float:
+    if direction:
+        return value
+    return -value
 
 
 def connect_hitbox(center1: List, center2: List, radius: float) -> Polygon:
