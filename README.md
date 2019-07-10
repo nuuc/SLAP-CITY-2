@@ -7,6 +7,16 @@
 
 ## Changelog
 
+### July 09, 2019
+  - Reimplemented engine's hit handler within the new framework.
+  - Renamed a couple of functions to better reflect what they do.
+  - Removed constructor parameters from Character and its inheritor's init.
+  - Platform dropping now checks for an input on the last frame of initiating the squat animation.
+    - Allows for squatting on platforms much more easily.
+#### July 09, 2019 Notes
+  - Did not meet this week's short term goals, however I plan on catching up next week, in addition to implementing all basic features.
+  - Attempting to finish all of next week's shert term goals before I go on vacation.
+
 ### July 06, 2019
   - Created a temporary 'phrog' dbpk file in character_info, accessed through hard-code in characters, to test the ability to access database pickle files.
   - Added squatting to the game, as well as squatting to trigger the check to drop through platforms.
@@ -55,6 +65,17 @@
 ## Task list
 
 ### Short term
+
+#### July 09, 2019 - July 16, 2019
+- [ ] Redesign/reformat the game
+  - [ ] Implement Meter
+  - [ ] Reformat character update (with relation to the new pkl files)
+  - [ ] Redo controls (keyboard support and better joystick mapping)
+  - [ ] Reorganize misc_functions (and functions in general)
+- [ ] Think about/create a framework for sprites
+- [ ] Fix bugs in animator/make it more accessible
+- [ ] Implement all basic features in Dummy (ledge options, knockdown options, etc.)
+
 #### July 02, 2019 - July 09 2019
 - [x] ~~Finish pklTreeView~~ *Finished July 02, 2019*
 - [ ] Redesign/reformat the game
@@ -64,6 +85,7 @@
   - [ ] Reorganize misc_functions (and functions in general)
 - [ ] Think about/create a framework for sprites
 - [ ] Fix bugs in animator/make it more accessible
+
 
 ### Long term
 - [ ] Implement better environment collision
