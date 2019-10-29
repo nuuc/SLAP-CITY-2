@@ -6,6 +6,7 @@ from tkinter import ttk
 
 root_path = os.path.dirname(os.path.realpath(__file__))
 
+
 class PklTreeItem:
 
     def __init__(self, parent=None):
@@ -219,7 +220,7 @@ class TKTree:
     def save(self):
         file = filedialog.asksaveasfilename(initialdir=root_path,
                                             title="Select file",
-                                            filetypes=(("Database pickle files", "*.dbpkl"),
+                                            filetypes=(("Database pickle files", "*.dbpk"),
                                                         ("All files", "*.*")))
         if file == '':
             return
