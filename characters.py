@@ -1,658 +1,274 @@
-import pygame, numpy, math, json, time, pickle, copy
 from typing import *
-from misc_functions import *
-
-JUMPSQUAT_FRAME = 4
-WAVELAND_ACTIONABLE = 10
+from shapely.geometry import *
 UNIV_LANDING_LAG = 2
-ASDI_MULTI = 10
-
-total_elapsed = 0
-t = 0
-
-with open('assets/character_info/json_zimmerman.json') as json_file:
-    char_data = json.load(json_file)['characters']
-
-with open('assets/character_info/phrog.dbpk', 'rb') as file:
-    dummy_data = pickle.load(file)
 
 
-# noinspection SpellCheckingInspection
 class Character:
     """
-    An abstract representation of a Slap City 2 character.
+    An abstract representation of a Super Slam Brothers: Jam character.
     """
-    action_state: List
-    speed: List
-    attributes: Dict
-    center: List[float]
-    damage: int
-    direction: bool
-    ecb: List[Tuple]
+    action_state: Dict
     env_state: str
     hitboxes: Dict
-    hurtboxes: Polygon
-    invincible: bool
-    jumped: bool
-    data: Dict
-    moves: Dict
-    meter: int
+    hurtbox: Polygon
+    ECB: List[Tuple]
+    internal_data: Dict
 
     def __init__(self) -> None:
-        self.action_state = ['jump', 0]
-        self.speed = [0, 0]
-        self.attributes = {}
-        self.center = [0, 0]
-        self.direction = False
-        self.ecb = []
-        self.env_state = 'airborne'
-        self.hitboxes = {'regular': {'hit': True, 'ids': {}}, 'projectile': []}
-        self.data = {'shield_health': 86, 'invincible': False, 'invincibility': 0, 'need_input': -1, 'on_ledge': 0,
-                     'sliding': False, 'landing_lag': UNIV_LANDING_LAG, 'dash_dir': 0, 'ASDI': 0,
-                     'meter': 0, 'jumped': False, 'damage': 0, 'needed_input': 0, 'tech': 0, 'kb': 0, 'jump_speed': 0}
-        self.moves = {}
+        # Some of these class attributes are not well fleshed out, and we will
+        # have to come back to them and complete them (like internal_data and ECB)
+        # Below the initializer are a collection of helper methods that are rather
+        # self-explanatory, up to update.
+        """
+        TODO: Complete class attributes
+        - internal_data: The internal_data dictionary is far from complete,
+        but with how it's implemented, we can come back to add to it or change
+        it whenever we want.
 
-    def _hinvincibility(self) -> None:
-        if self.data['invincibility'] >= 0:
-            self.data['invincibility'] -= 1
-            if self.data['invincibility'] <= 0:
-                self.data['invincible'] = False
-            else:
-                self.data['invincible'] = True
+         - hitboxes: I hope to finish the structure of hitboxes soon because
+         hitboxes are a core part of the game and we have to provide a solid
+         foundation for how hitboxes are done. We will discuss this ASAP.
 
-    def _htech(self) -> None:
-        if self.data['tech'] >= 0:
-            self.data['tech'] -= 1
+         - ECB: To be honest, I'm not quite sure how to implement ECB, but I
+         think where we begin is deciding what exactly ECB will do for us. For
+         example, do we want an ECB that can handle sloped floors? Do we want
+         an ECB that can replicate a diamond with sides such that it the
+         environment pushes the sides away?"""
+        self.action_state = {'action': 'rebirth', 'frame': 0}
+        self.env_state = 'rebirth'
+        self.hitboxes = {'reg': {}, 'proj': [], 'grab': {}}
+        self.internal_data = {'pos': (500, 500),
+                              'damage': 0,
+                              'speed': (0, 0),
+                              'shield_health': 86,
+                              'invincibility': 30,
+                              'waveland': False,
+                              'landing_lag': UNIV_LANDING_LAG,
+                              'jumped': False,
+                              'tech_valid': False,
+                              'tech_cd': 0}
+        self.ECB = []
+        self.traits = {}
 
-    def _hprojectile(self) -> None:
+    def get_act_state(self, index: str) -> Union[str, int]:
+        return self.action_state[index]
+
+    def modify_act_state(self, index: str, value: Union[str, int]) -> None:
+        self.action_state[index] = value
+
+    def get_int_data(self, index: str) -> Union[str, int, bool, Tuple]:
+        return self.internal_data[index]
+
+    def modify_int_data(self, index: str, value: Union[str, int, bool, Tuple]) \
+            -> None:
+        self.internal_data[index] = value
+
+    def damaged(self, damage: int) -> None:
+        current_damage = self.get_int_data('damage')
+        new_damage = current_damage + damage
+        self.modify_int_data('damage', new_damage)
+
+    def get_speed(self, component:Union[str, bool] = False) -> Union[Tuple, float]:
+        if not component:
+            return self.get_int_data('speed')
+        elif component == 'x':
+            return self.get_speed()[0]
+        elif component == 'y':
+            return self.get_speed()[1]
+
+    def modify_speed(self, speed: Tuple) -> None:
+        self.modify_int_data('speed', speed)
+
+    def increment_speed(self, speed: Tuple) -> None:
+        current_speed = self.get_speed()
+        new_speed = (current_speed[0] + speed[0], current_speed[1] + speed[0])
+        self.modify_int_data('speed', new_speed)
+
+    def get_pos(self, component: Union[str, bool] = False) -> Tuple:
+        if not component:
+            return self.get_int_data('pos')
+        elif component == 'x':
+            return self.get_pos()[0]
+        elif component == 'y':
+            return self.get_pos()[1]
+
+    def modify_pos(self, pos: Tuple) -> None:
+        self.modify_int_data('pos', pos)
+
+    def increment_pos(self, pos_inc: Tuple) -> None:
+        current_pos = self.get_pos()
+        new_pos = (current_pos[0] + pos_inc[0], current_pos[1] + pos_inc[1])
+        self.modify_int_data('pos', new_pos)
+
+    def update_pos(self) -> None:
+        self.increment_pos(self.get_speed())
+
+    def update(self) -> None:
+        # We will definitely have to talk about the specifics of update.
+        """
+        TODO: Talk about update steps and update order.
+        Additionally, in the previous version of the code, I had enlisted the
+        help of many helper methods in Character to make the update less messy,
+        but what ended up happening was that it made Character a lot more messy.
+        What I'm thinking about doing this time is defining nested functions in
+        here to be called in certain events.
+
+        List of things to update (in no particular order):
+        - Invincibility timer/invincibility status
+        - Tech-availability status
+        - Standard and character specific projectiles
+        - Shield health
+        - Hitlag status and ASDI inputs
+        - Environmental state grounded:
+            - All of the possible action states while grounded
+            - Grounded attacks (not a separate case, but a special case)
+        - Environmental state airborne:
+            - All of the possible action states while airborne
+        - Environmental state ledge:
+            - ...
+        - Hitbox/hurtbox updater (tentative: this will very likely be called
+        right after the environmental handler finishes. The reason is explained
+        in the following section)
+
+        Needless to say, update order is very important and must take careful
+        thought and consideration. Right now, I can't think of any reason why
+        the current order should be changed, except the hitbox/hurtbox update.
+        The reason it may make more sense to call it after the environmental
+        handler runs is to reduce redundancy. For example, imagine a character
+        is in the middle of an aerial attack on frame X. On this frame, the
+        hitbox/hurtbox updater is called, but then the environmental handler
+        detects that the character has landed and would have to go through
+        another update to remove the aerial hitboxes and update the hurtboxes
+        to being grounded.
+
+        To be honest, this is a relatively small detail, and if we organize
+        our code well, we will be able to interchange when the hitbox/hurtbox
+        updates are called to our needs and to optimize it.
+        """
         pass
 
-    def _hshield(self) -> None:
-        if self.action_state[0] != 'shielded':
-            if self.data['shield_health'] < 86:
-                self.data['shield_health'] += 0.1
-            elif self.data['shield_health'] > 86:
-                self.data['shield_health'] = 86
-
-    def _hhitlag(self) -> None:
-        if self.action_state[0] == 'hitlag':
-            self.action_state[1] -= 1
-            if self.action_state[1] == 0:
-                if self.data['ASDI'] != 0:
-                    self.increment_center(math.cos(self.data['ASDI']) * ASDI_MULTI,
-                                          -math.sin(self.data['ASDI']) * ASDI_MULTI)
-                self.action_state = self.data['action_state']
-
-    def _hsliding(self) -> None:
-        if self.data['sliding']:
-            if not self.speed[0] == 0:
-                if abs(self.speed[0]) > self.attributes['high_traction_speed']:
-                    self.speed[0] = cross_inc(self.speed[0], -2 * self.attributes['traction'], 0)
-                else:
-                    self.speed[0] = cross_inc(self.speed[0], -self.attributes['traction'], 0)
-                self.increment_center(self.speed[0])
-
-    def _hwalk(self) -> None:
-        tilt = self.data['walk_tilt']
-        if tilt != 0:
-            self.data.update({'sliding': False})
-            self.update_speed(self.attributes['max_gr_speed'] * tilt * 0.7)
-            self.increment_center(self.speed[0])
-            self.action_state[1] += 1
-            if self.action_state[1] > len(dummy_data['animations']['walk']) - 1:
-                self.action_state[1] = 0
-        elif self.data['sliding'] and tilt == 0:
-            self.action_state = ['wait', 0]
-        elif not self.data['sliding'] and tilt == 0:
-            self.action_state = ['wait', 0]
-            self.update_speed(0)
-        if tilt > 0:
-            self.direction = True
-        elif tilt < 0:
-            self.direction = False
-
-    def _hdash(self) -> None:
-        if self.action_state[0] == 'start_dash':
-            self.data.update({'sliding': False})
-            self.action_state[1] += 1
-            if self.action_state[1] == self.attributes['dash_frames']:
-                self.action_state = ['full_dash', 0]
-            if self.data['dash_dir'] < 0:
-                self.direction = False
-            elif self.data['dash_dir'] > 0:
-                self.direction = True
-            self.speed[0] = self.attributes['max_gr_speed'] * self.data['dash_dir']
-            self.increment_center(self.speed[0])
-
-        elif self.action_state[0] == 'full_dash':
-            self.increment_center(self.speed[0])
-            if self.data['dash_dir'] < 0:
-                self.direction = False
-            elif self.data['dash_dir'] > 0:
-                self.direction = True
-        elif self.action_state[0] == 'turnaround':
-            self.action_state[1] += 1
-            if self.action_state[1] == 1:
-                self.data.update({'turnaround_initial': numpy.sign(self.speed.copy()[0])})
-            if self.data['turnaround_initial'] > 0:
-                self.speed[0] -= self.attributes['traction']
-            else:
-                self.speed[0] += self.attributes['traction']
-
-            if self.action_state[1] < self.attributes['turnaround_frames']:
-                self.data.update({'dash_dir': 0})
-            elif self.data['dash_dir'] != 0:
-                self.action_state = ['start_dash', 0]
-            else:
-                self.action_state = ['wait', 0]
-            self.increment_center(self.speed[0])
-
-    def _hwaveland(self) -> None:
-        self.action_state[1] += 1
-        if self.action_state[1] > 10:
-            self.action_state = ['wait', 0]
-
-    def _hlag(self) -> None:
-        self.action_state[1] -= 1
-        if self.action_state[1] == 0:
-            self.action_state = ['wait', 0]
-
-    def _hjump(self) -> None:
-        self.action_state[1] += 1
-        self.increment_center(cross_inc(self.speed[0], -2 * self.attributes['traction'], 0))
-        if self.action_state[1] > JUMPSQUAT_FRAME:
-            self.env_state = 'airborne'
-            if self.data['released']:
-                self.update_speed(self.data['jump_speed'],
-                                  self.attributes['shorthop_velocity'] - self.attributes['vair_acc'])
-                self.increment_center(self.speed[0], -self.attributes['shorthop_velocity'])
-            else:
-                self.update_speed(self.data['jump_speed'],
-                                  self.attributes['fullhop_velocity'] - self.attributes['vair_acc'])
-                self.increment_center(self.speed[0], -self.attributes['fullhop_velocity'])
-            self.action_state = ['jump', 0]
-
-    def _hauto_wavedash(self) -> None:
-        self.action_state[1] += 1
-        if self.action_state[1] > JUMPSQUAT_FRAME:
-            self.env_state = 'airborne'
-            self.action_state = ['jump', 0]
-            self.action('airdodge', self.data['angle'])
-
-    def _hshield_off(self) -> None:
-        self.action_state[1] -= 1
-        if self.action_state[1] <= 0:
-            self.action_state = ['wait', 0]
-
-    def _hshieldstun(self) -> None:
-        self.action_state[1] -= 1
-        if self.action_state[1] == 0:
-            self.action_state[0] = 'shielded'
-            self.speed[0] = 0
-        else:
-            if self.speed[0] >= self.attributes['high_traction_speed']:
-                self.update_speed(cross_inc(self.speed[0], -2 * self.attributes['traction'], 0))
-            else:
-                self.update_speed(cross_inc(self.speed[0], -self.attributes['traction'], 0))
-            self.increment_center(self.speed[0])
-
-    def _hkd_bounce(self) -> None:
-        self.data.update({'wavelanding': False})
-        self.update_speed(cross_inc(self.speed[0], -self.attributes['air_friction'], 0))
-        self.increment_center(self.speed[0])
-        self.action_state[1] -= 1
-        if self.action_state[1] == 0:
-            self.action_state = ['kd_wait', 0]
-
-    def _hgroundmove(self) -> None:
-        '''
-        ~~ If this code is reached, this implies that the action state should be handled by information from
-           %character data%
-
-        - Check if self.action_state[1] > len(%corresponding action in character data%)
-            - Update action state accordingly
-
-        - Check if this move is considered an attack
-            - If so, update the hit value in hitboxes to False
-
-        - Check for type of move (regular, maneuver, throw, etc.)
-            - Update hurtboxes to corresponding action state hurtbox polygon in %character data%
-            - Update hitboxes to corresponding action state hitbox polygons in %character data%
-        '''
-        if self.action_state[0] in self.moves:
-            self.action_state[1] += 1
-            move = self.moves[self.action_state[0]]
-            frame_data = move['frame data']
-
-            if self.action_state[1] == 1:
-                self.hitboxes['regular']['hit'] = False
-            elif self.action_state[1] > len(frame_data) - 1:
-                self.action_state = ['wait', 0]
-                self.hitboxes['regular'] = {'hit': True, 'ids': {}}
-            else:
-                self.increment_center(dir_value(frame_data[self.action_state[1]]['increment'][0], self.direction),
-                                      frame_data[self.action_state[1]]['increment'][1])
-                if move['type'] == 'regular hitbox':
-                    self.hitboxes['regular']['ids'] = copy.deepcopy(frame_data[self.action_state[1]]['hitboxPolys'])
-                    for ids in frame_data[self.action_state[1]]['hitboxPolys']:
-                        hitboxPoly = frame_data[self.action_state[1]]['hitboxPolys'][ids]['polygon']
-                        self.hitboxes['regular']['ids'][ids]['polygon'] = auto_transform(hitboxPoly,
-                                                                                         self.direction,
-                                                                                         tuple(self.center))
-
-    def _hairdodge(self) -> None:
-        self.action_state[1] += 1
-        if self.action_state[1] == 3:
-            self.data.update({'invincibility': 27})
-        elif self.action_state[1] < 28:
-            multiplier = (605535 / (self.action_state[1] + 29.65) ** 3.24) - 0.25
-            angle = self.data['angle']
-            if angle:
-                self.update_speed(math.cos(angle) * multiplier, math.sin(angle) * multiplier)
-                self.increment_center(self.speed[0], -self.speed[1])
-            else:
-                self.update_speed(0, 0)
-                self.increment_center(self.speed[0], -self.speed[1])
-        elif self.action_state[1] > 28:
-            self.action_state = ['freefall', 0]
-
-    def _hhitstun(self) -> None:
-        self.speed = [cross_inc(self.speed[0], 0.19, 0), cross_inc(self.speed[1], -self.attributes['vair_acc'],
-                                                                   -self.attributes['max_vair_speed'])]
-        self.increment_center(self.speed[0], -self.speed[1])
-        self.action_state[1] -= 1
-        if self.action_state[1] <= 0:
-            if self.data['kb'] < 80:
-                self.action_state = ['jump', 0]
-            else:
-                self.action_state = ['tumble', 0]
-
-    def _hairmove(self) -> None:
-        '''
-        ~~ If this code is reached, this implies that the action state should be handled by information from
-           %character data%
-
-        - Check if self.action_state[1] > len(%corresponding action in character data%)
-            - Update action state accordingly
-
-        - Check if this move is considered an attack
-            - If so, update the hit value in hitboxes to False
-
-        - Check if self.action_state[1] > autocancel frame
-            - If not, landing lag is set to a value in %character data%
-            - If so, landing lag is set to UNIV_LANDING_LAG
-
-        - Check for type of move
-            - Update hurtboxes to corresponding action state hurtbox polygon in %character data%
-            - Update hitboxes to corresponding action state hitbox polygons in %character data%
-        '''
-        self.action_state[1] += 1
-        self.handle_airborne_speed()
-
-    def _hledge_grab(self) -> None:
-        self.jumped = False
-        self.action_state[1] -= 1
-        if self.action_state[1] == 0:
-            self.action_state = ['ledge_wait', 0]
-
-    def _hledge_maneuver(self) -> None:
-        # TODO: Make this handle ledges according to new framework
-        self.action_state[1] += 1
-        if self.moves[self.action_state[0]]['type'] == 'maneuver':
-            if self.env_state == 'grounded':
-                if self.action_state[1] == self.moves[self.action_state[0]]['invincible'][0]:
-                    self.data.update({'invincibility': self.moves[self.action_state[0]]['invincible'][1]})
-                if self.action_state[1] == self.moves[self.action_state[0]]['end']:
-                    if self.action_state[0] == 'rollf':
-                        self.direction = not self.direction
-                    elif self.action_state[0] == 'techrolll':
-                        self.direction = True
-                    elif self.action_state[0] == 'techrollr':
-                        self.direction = False
-                    self.update_ecb()
-                if self.moves[self.action_state[0]]['end'] > self.action_state[1] \
-                        >= self.moves[self.action_state[0]]['start']:
-                    if self.action_state[0] in ('rollf', 'rollb', 'ledge_getup'):
-                        if self.direction:
-                            self.increment_center(eval(self.moves[self.action_state[0]]['increment']))
-                        else:
-                            self.increment_center(-eval(self.moves[self.action_state[0]]['increment']))
-                    elif self.action_state[0] == 'ledge_jump':
-                        if self.direction:
-                            self.update_speed(self.attributes['max_hair_speed'],
-                                              self.attributes['fullhop_velocity'])
-                        else:
-                            self.update_speed(-self.attributes['max_hair_speed'],
-                                              self.attributes['fullhop_velocity'])
-                        self.env_state = 'airborne'
-                    else:
-                        self.increment_center(eval(self.moves[self.action_state[0]]['increment']))
-            elif self.env_state == 'ledge':
-                if self.action_state[1] == self.moves[self.action_state[0]]['invincible'][0]:
-                    self.data.update({'invincibility': self.moves[self.action_state[0]]['invincible'][1]})
-                if self.action_state[1] <= 10:
-                    self.increment_center(0, -9)
-                else:
-                    self.env_state = 'grounded'
-                    self.data.update({'sliding': False})
-
-    def _hstartsquat(self) -> None:
-        self.action_state[1] += 1
-        if self.action_state[1] > 4:
-            self.action_state = ['squat', 0]
-
-    def update(self) -> None:
-        """
-        Update the character based on their action state.
-        """
-        self._hinvincibility()
-        self._htech()
-        self._hprojectile()
-        self._hshield()
-        self._hhitlag()
-
-        if self.env_state == 'grounded':
-            self._hsliding()
-            if self.action_state[0] == 'walk':
-                self._hwalk()
-
-            elif self.action_state[0] in ('start_dash', 'full_dash'):
-                self._hdash()
-
-            elif self.action_state[0] == 'startsquat':
-                self._hstartsquat()
-
-            elif self.action_state[0] == 'waveland':
-                self._hwaveland()
-
-            elif self.action_state[0] == 'lag':
-                self._hlag()
-
-            elif self.action_state[0] == 'jumpsquat':
-                self._hjump()
-
-            elif self.action_state[0] == 'auto_wavedash':
-                self._hauto_wavedash()
-
-            elif self.action_state[0] == 'shielded':
-                self.data['shield_health'] -= 0.2
-
-            elif self.action_state[0] == 'shield_off':
-                self._hshield_off()
-
-            elif self.action_state[0] == 'shieldstun':
-                self._hshieldstun()
-
-            elif self.action_state[0] == 'kd_bounce':
-                self._hkd_bounce()
-
-            elif self.action_state[0] == 'kd_wait':
-                self.update_ecb()
-
-            else:
-                self._hgroundmove()
-
-        elif self.env_state == 'airborne':
-            if self.action_state[0] == 'airdodge':
-                self._hairdodge()
-
-            elif self.action_state[0] == 'hitstun':
-                self._hhitstun()
-
-            elif self.action_state[0] in ('tumble', 'jump', 'freefall'):
-                self.handle_airborne_speed()
-
-            elif self.action_state[0] in self.moves:
-                self._hairmove()
-
-        elif self.env_state == 'ledge':
-            if self.action_state[0] == 'ledge_grab':
-                self._hledge_grab()
-
-            elif self.action_state[0] in self.moves:
-                self._hledge_maneuver()
-
-        self.update_hurtbox()
-
-    def update_ecb(self) -> None:
-        raise NotImplementedError
-
     def update_hurtbox(self) -> None:
         raise NotImplementedError
 
-    def update_center(self, x: float, y: float) -> None:
-        """
-        Update the character's center to x and y, ecb, and hitbox. This must be implemented in subclasses of Character
-        because the ecb and hitbox should update dynamically based on action state.
-        """
-        self.center = [x, y]
-        self.update_ecb()
-        self.update_hurtbox()
-
-    def increment_center(self, x=0.0, y=0.0) -> None:
-        self.center = [self.center[0] + x, self.center[1] + y]
-        self.update_ecb()
-        self.update_hurtbox()
-
-    def update_speed(self, x=None, y=None) -> None:
-        """
-        Update a character's air speed to x and y and adjust according to max air speeds and action state.
-        """
-        if x is not None and y is not None:
-            self.speed = [x, y]
-        elif x is None and y is not None:
-            self.speed[1] = y
-        elif y is None and x is not None:
-            self.speed[0] = x
-        else:
-            self.speed = [0, 0]
-
-    def increment_speed(self, x=0.0, y=0.0) -> None:
-        self.speed = [self.speed[0] + x, self.speed[1] + y]
-
-    def handle_airborne_speed(self):
-        self.increment_speed(0, -self.attributes['vair_acc'])
-        if abs(self.speed[0]) > self.attributes['max_hair_speed']:
-            self.speed[0] = cross_inc(self.speed[0], -self.attributes['hair_acc'] / 4, 0)
-        if self.speed[1] < -self.attributes['max_vair_speed']:
-            self.speed[1] = -self.attributes['max_vair_speed']
-        self.increment_center(self.speed[0], -self.speed[1])
+    def update_ECB(self) -> None:
+        raise NotImplementedError
 
     def actionable(self) -> bool:
-        if self.action_state[0] in ('wait', 'jump', 'walk', 'full_dash', 'start_dash', 'tumble', 'ledge_wait', 'squat'):
-            return True
-        return False
-
-    def enter_hitlag(self, frames: int, attack_data: Dict) -> None:
         """
-        Enters hitlag for 'frames' frames and stores the data of an attack into the action state to be used when hitstun
-        ends and a DI input is recorded
+        TODO: Create a table of all possible action states to handle return values
+        Apart from creating the table to handle return values of this function,
+        creating a table of all possible action states is useful for when we
+        start designing how inputs are handled: certain inputs can have an
+        effect on the certain characters while they're not 'actionable'
         """
-        self.data.update({'action_state': self.action_state.copy(), 'attack_data': attack_data})
-        self.action_state = ['hitlag', frames]
+        pass
 
-    def drift(self, tilt) -> None:
-        set_spd = tilt * self.attributes['max_hair_speed']
-        if set_spd == 0:
-            self.update_speed(cross_inc(self.speed[0], -self.attributes['air_friction'], 0))
-        elif self.speed[0] != set_spd:
-            self.update_speed(cross_inc(self.speed[0], -self.attributes['hair_acc'], set_spd))
+    def enter_hitlag(self, attack_data: Dict, receiver: bool) -> None:
+        """
+        TODO: To be completed after hitboxes and how attack data is stored are done
+        This method will put the character into hitlag as a function of damage
+        taken. If receiver is False, this will freeze the character into hitlag
+        for some amount of frames and return them back into whatever action state
+        they were in. If receiver is True, this will do the same thing, except
+        place the character into hitstun as a function of attack_data after
+        hitlag is finished.
+        """
+        pass
 
-    def action(self, action: str, extra=None) -> None:
-        if self.actionable() and extra is None:
-            self.action_state = [action, 0]
-        elif self.actionable() and action == 'walk':
-            self.action_state[0] = 'walk'
-            self.data.update({'walk_tilt': extra})
-        elif self.action_state[0] == 'full_dash' and action == 'dash':
-            if numpy.sign(self.speed[0]) != numpy.sign(extra):
-                if extra != 0:
-                    self.direction = not self.direction
-                self.action_state = ['turnaround', 0]
-        elif self.actionable() and action == 'dash':
-            if self.action_state[1] < self.attributes['dash_frames'] and extra != self.data['dash_dir']:
-                self.action_state = ['start_dash', 0]
-            self.data.update({'dash_dir': extra})
-        elif self.action_state[0] == 'turnaround' and action == 'dash':
-            self.data.update({'dash_dir': extra})
-        elif action == 'shield_off':
-            self.action_state = ['shield_off', extra]
-        elif self.actionable() and action == 'airdodge':
-            self.action_state = ['airdodge', 0]
-            self.data.update({'angle': extra})
-        elif action == 'auto_wavedash':
-            self.action_state[0] = 'auto_wavedash'
-            self.data.update({'angle': extra})
-        elif action == 'roll' and self.action_state[0] == 'shielded':
-            if self.direction and extra == 1:
-                self.action_state = ['rollf', 0]
-            elif self.direction and extra == -1:
-                self.action_state = ['rollb', 0]
-            elif not self.direction and extra == -1:
-                self.action_state = ['rollf', 0]
-            elif not self.direction and extra == 1:
-                self.action_state = ['rollb', 0]
-        elif action == 'techroll':
-            if extra != 0:
-                if extra == 1:
-                    self.action_state = ['techrollr', 0]
-                    self.direction = False
-                elif extra == -1:
-                    self.action_state = ['techrolll', 0]
-                    self.direction = True
-            else:
-                self.action_state = ['tech', 0]
-        elif self.action_state[0] == 'kd_wait':
-            if action == 'kd_roll':
-                if extra == 1:
-                    self.action_state = ['kd_rollr', 0]
-                    self.direction = False
-                elif extra == -1:
-                    self.action_state = ['kd_rolll', 0]
-                    self.direction = True
-            elif action == 'kd_getup':
-                self.action_state = ['kd_getup', 0]
-        elif (self.actionable() and action == 'jumpsquat') or \
-                (self.action_state[0] in ('shielded', 'shield_off', 'turnaround') and action == 'jumpsquat'):
-            self.action_state = ['jumpsquat', 0]
-            self.data.update({'released': extra})
-        elif self.actionable() and action == 'aerial_jump':
-            if not self.jumped:
-                self.update_speed(extra * self.attributes['max_hair_speed'], self.attributes['fullhop_velocity'])
-                self.action_state = ['jump', 0]
-                self.jumped = True
+    @staticmethod
+    def cross_inc(value: float, increment: float, cross: float = 0) \
+            -> float:
+        """
+        This static function does the following:
+        Increments value if value is higher than cross. If value is then lower
+        than cross, it will return cross, otherwise it will return value.
+        Decrements value if value is lower than cross. If value is then higher
+        than cross, it will return cross, otherwise it will return value.
+
+        In practise, what this is used for is when you want to increment
+        directionally. For example, if you want to lower speed, it's trivial
+        when the speed is positive. However, when it is negative, this function
+        comes in handy, since you can set a negative increment, and this
+        function will handle both when speed is negative or when it is positive.
+
+        Additionally, since most of the time, when you increment directionally,
+        you don't want to increment PAST a certain "cross," this function
+        handles that.
+
+        Example:
+            cross_inc(10, -5, 0) returns 5
+            cross_inc(-10, -5, 0) returns -5
+            cross_inc(-3, -5, 0) returns 0
+
+        Message me if there's any confusion since this is a very important
+        helper function.
+        """
+        if value > cross:
+            value += increment
+            if value < cross:
+                return cross
+            return value
+        elif value < cross:
+            value -= increment
+            if value > cross:
+                return cross
+            return value
+        return value
+
+    def update_air_speed(self, drift: float) -> None:
+        """
+        Updates air speed. Don't worry too much about the specifics. This is
+        called every update cycle and takes in 'drift' which corresponds to
+        the x-axis value of the control stick.
+        """
+        target_speed = drift * self.traits['x_max_speed']
+        current_x_speed = self.get_speed('x')
+        current_y_speed = self.get_speed('y')
+        if target_speed == 0:
+            # Update x speed
+            # Starts slowing the character down, up to 0 x speed.
+            self.modify_speed((self.cross_inc(current_x_speed,
+                                              -self.traits['air_friction'],
+                                              0),
+                               current_y_speed))
+
+        elif not self.get_speed('x') == target_speed:
+            # Update x speed
+            # Starts speeding/slowing the character up/down, trying to hit the
+            # target speed.
+            self.modify_speed((self.cross_inc(current_x_speed,
+                                              -self.traits['x_acc'],
+                                              target_speed),
+                               current_y_speed))
+
+        # Update y speed and makes sure it doesn't exceed the terminal y speed.
+        if not current_y_speed <= -self.traits['y_max_speed']:
+            self.modify_speed((self.get_speed('x'),
+                               self.cross_inc(current_y_speed,
+                                              -self.traits['y_acc'],
+                                              -self.traits['y_max_speed'])))
 
 
-class Dummy(Character):
+class Phrog(Character):
 
     def __init__(self) -> None:
-        super(Dummy, self).__init__()
-        self.hurtboxes = Polygon([(-30, 0), (30, 0), (30, -60), (-30, -60)])
-        self.hitboxes = {'regular': {'hit': True, 'ids': {}}, 'grab': {}, 'projectiles': []}
-        self.attributes = char_data['Phrog']['attributes']
-        self.speed = [0, 0]
-        self.jumped = False
-        self.damage = 0
-        self.ecb = [(self.center[0], self.center[1]), (self.center[0] - 15, self.center[1] - 30),
-                    (self.center[0], self.center[1] - 30), (self.center[0] + 15, self.center[1] - 30)]
-        self.moves = dummy_data['moves']
-
-    def update(self) -> None:
-        super().update()
-        if self.action_state[0] == 'up_special':
-            self.env_state = 'suspended'
-            self.action_state[1] += 1
-            if self.action_state[1] == self.moves[self.action_state[0]]['need_input']:
-                self.data.update({'need_input': 0})
-            elif self.action_state[1] == self.moves[self.action_state[0]]['need_input'] + 1:
-                direction = self.data['need_input']
-                self.update_speed(15 * math.cos(direction), 15 * math.sin(direction))
-            elif self.moves[self.action_state[0]]['end']> self.action_state[1] >= self.moves[self.action_state[0]]['start']:
-                self.increment_center(self.speed[0], -self.speed[1])
-            elif self.action_state[1] == self.moves[self.action_state[0]]['end']:
-                self.update_speed(0, 0)
-                self.env_state = 'airborne'
-                self.action_state = ['freefall', 0]
-        elif self.action_state[0] in self.moves and self.moves[self.action_state[0]]['type'] == 'other':
-            self.action_state[1] += 1
-            if self.action_state[1] == 1:
-                if self.moves[self.action_state[0]]['env_state'] == 'any':
-                    self.data.update({'prev_action_state': self.action_state.copy()})
-            elif self.moves[self.action_state[0]]['type'] == 'projectile':
-                for id in self.moves[self.action_state[0]]['ids']:
-                    if self.action_state[1] == self.moves[self.action_state[0]]['ids'][id]['start'][0]:
-                        # Adds the hitbox
-                        pos1 = in_relation_point(self.center, x_reflect_point(self.moves[self.action_state[0]]['ids']
-                                                                    [id]['hitbox']['position'], 0, self.direction))
-                        radius = self.moves[self.action_state[0]]['ids'][id]['hitbox']['radius']
-                        self.hitboxes['projectile'].append([pos1, pos1, radius, self.direction])
-
-            # When they reach the end of the move, return them to action state based on the env_state or if
-            # env_state is 'any', return them to the previous action state
-            if self.action_state[1] == self.moves[self.action_state[0]]['end']:
-                if self.moves[self.action_state[0]]['env_state'] == 'any':
-                    self.action_state = self.data['prev_action_state']
-                elif self.moves[self.action_state[0]]['env_state'] == 'airborne':
-                    self.action_state = ['jump', 0]
-                elif self.moves[self.action_state[0]]['env_state'] == 'grounded':
-                    self.action_state = ['wait', 0]
-
-    def update_ecb(self) -> None:
-        if self.env_state == 'grounded':
-            self.ecb = in_relation(self.center, [(0, 0), (-15, -30), (0, -60), (15, -30)])
-        elif self.env_state == 'airborne':
-            if self.action_state[0] in ('jump', 'freefall'):
-                if 5 < self.speed[1]:
-                    self.ecb = in_relation(self.center, [(0, 10), (-15, -30), (0, -70), (15, -30)])
-                elif -5 <= self.speed[1] <= 5:
-                    self.ecb = in_relation(self.center, [(0, self.speed[1] * 2), (-15, -30),
-                               (0, -60 - self.speed[1] * 2), (15, -30)])
-                else:
-                    self.ecb = in_relation(self.center, [(0, -10), (-15, -30), (0, -50), (15, -30)])
-            elif self.action_state[0] == 'airdodge':
-                if self.action_state[1] <= 3:
-                    self.ecb = in_relation(self.center, [(0, 10), (-15, -30), (0, -60), (15, -30)])
-                else:
-                    self.ecb = in_relation(self.center, [(0, 0), (-15, -30), (0, -60), (15, -30)])
-            else:
-                self.ecb = in_relation(self.center, [(0, 0), (-15, -30), (0, -60), (15, -30)])
-        elif self.env_state == 'ledge':
-            self.ecb = in_relation(self.center, [(0, 0), (-8, -45), (0, -90), (8, -45)])
-        else:
-            self.ecb = in_relation(self.center, [(0, 0), (-15, -30), (0, -60), (15, -30)])
-
-    def update_hurtbox(self) -> None:
-        '''
-        Set hurtboxes equal to some polygon defined in %character data%
-        '''
-        if self.action_state[0] == 'hitlag':
-            if self.data['attack_data'] is None:
-                prev_action_state = self.data['action_state']
-                hurtboxPoly = self.moves[prev_action_state[0]]['frame data'][prev_action_state[1]]['hurtboxPoly']
-            else:
-                # Supposed to be a hitlag animation
-                hurtboxPoly = dummy_data['animations']['walk'][0]['hurtboxPoly']
-        elif self.env_state == 'grounded':
-            if self.action_state[0] == 'walk':
-                hurtboxPoly = dummy_data['animations']['walk'][self.action_state[1]]['hurtboxPoly']
-            elif self.action_state[0] == 'jumpsquat':
-                hurtboxPoly = dummy_data['animations']['jump'][self.action_state[1] - 1]['hurtboxPoly']
-            elif self.action_state[0] == 'startsquat':
-                hurtboxPoly = dummy_data['animations']['startsquat'][self.action_state[1] - 1]['hurtboxPoly']
-            elif self.action_state[0] == 'squat':
-                hurtboxPoly = dummy_data['animations']['startsquat'][3]['hurtboxPoly']
-            elif self.action_state[0] in self.moves:
-                hurtboxPoly = self.moves[self.action_state[0]]['frame data'][self.action_state[1]]['hurtboxPoly']
-            else:
-                hurtboxPoly = dummy_data['animations']['walk'][0]['hurtboxPoly']
-        elif self.env_state == 'airborne':
-            if self.action_state[0] == 'jump':
-                hurtboxPoly = dummy_data['animations']['airborne'][0]['hurtboxPoly']
-            else:
-                hurtboxPoly = dummy_data['animations']['walk'][0]['hurtboxPoly']
-        else:
-            hurtboxPoly = dummy_data['animations']['walk'][0]['hurtboxPoly']
-        self.hurtboxes = auto_transform(hurtboxPoly, self.direction, tuple(self.center))
-
-
-
+        super(Phrog).__init__()
+        # This is only temporary. This data will eventually be stored elsewhere.
+        self.traits = {
+            "gr_max_speed": 11.5,
+            "y_acc": 1.18,
+            "y_max_speed": 14.34,
+            "x_acc": 0.41,
+            "x_max_speed": 4.27,
+            "fullhop_velocity": 18.84,
+            "shorthop_velocity": 10.41,
+            "traction": 0.24,
+            "high_traction_speed": 8.19,
+            "weight": 30,
+            "air_friction": 0.1,
+            "dash_frames": 11,
+            "turnaround_frames": 30,
+            "edge_link": [
+                50,
+                30,
+                50]}
