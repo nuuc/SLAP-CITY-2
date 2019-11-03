@@ -7,6 +7,11 @@
 
 ## Changelog
 
+### November 03, 2019
+  Finally, updates have started coming out again. The reason for the extended break was mainly because the code we had written was not robust enough to support the features we wanted to implement. Now that we have a better idea of what the game is going to look like, we're rewriting pretty much everything as well as adding much, much more documentation for a better collaborative process. Additionally, I have created a partially finished design draft for the game in order to avoid the same mistakes as last time: spaghetti code. Admittedly, I'm working on the code even though the draft isn't finished, which may lead to problems, but I plan to work in parallel on the code and draft, sketching out what I want to do before I implement it. Currently, I'm still in the process of rebuilding the old code in a robust, well-documented manner, but I expect to be finished before December. Ideally, I would like to have a working development environment by then too, but no guarantees on that. 
+  Additionally, although we plan to work on the code in Python, we plan on porting it over to C or C++ eventually because Python is easy to write and create prototypes in, but doesn't have the extensive features and control of other languages. Knowing that, it's important to consider Python specific features and if it would be easy to implement them in another language. I'm thinking specifically about data storage by pickling in Python and how (or if) that would be transferred to another language. I'm looking into serialization in C++ right now, but the method for data storage is still currently undecided.
+   Anyways, I'll try to push out updates weekly and document what changes or features I've added, but for the most part, I probably won't go into detail too much about the changes I make for a while, since most of these updates will just be on reimplementing old features, and the design draft should cover all the features that will be in the game anyways (I'll add the draft to this page once it's almost done).
+
 
 ### July 09, 2019
   - Reimplemented engine's hit handler within the new framework.
