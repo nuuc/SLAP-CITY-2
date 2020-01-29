@@ -1,68 +1,55 @@
-import pygame, copy
 from typing import *
-from shapely.geometry import *
-from shapely.ops import *
-from shapely import affinity
+import math
 
 
-def x_reflect(polygon: Polygon, axis: float, direction: bool) -> Polygon:
-    if direction:
-        return polygon
-    reflected_coords = [(axis * 2 - coord[0], coord[1]) for coord in list(polygon.exterior.coords)]
-    return Polygon(reflected_coords)
+def sign(value: float) -> int:
+    """
+    Gets the sign of a value.
+    """
+    if value > 0:
+        return 1
+    elif value < 0:
+        return -1
+    elif value == 0:
+        return 0
 
 
-def x_reflect_list(lst: List, axis: float, direction: bool) -> List:
-    if direction:
-        return lst
-    return [(axis * 2 - coord[0], coord[1]) for coord in lst]
+def cross_inc(value: float, increment: float, cross: float = 0) \
+        -> float:
+    """
+    This static function does the following:
+    Increments value if value is higher than cross. If value is then lower
+    than cross, it will return cross, otherwise it will return value.
+    Decrements value if value is lower than cross. If value is then higher
+    than cross, it will return cross, otherwise it will return value.
 
+    In practise, what this is used for is when you want to increment
+    directionally. For example, if you want to lower speed, it's trivial
+    when the speed is positive. However, when it is negative, this function
+    comes in handy, since you can set a negative increment, and this
+    function will handle both when speed is negative or when it is positive.
 
-def x_reflect_point(point: List, axis: float, direction: bool) -> List:
-    if direction:
-        return point
-    dis = point[0] - axis
-    return [axis - dis, point[1]]
+    Additionally, since most of the time, when you increment directionally,
+    you don't want to increment PAST a certain "cross," this function
+    handles that.
 
+    Example:
+        cross_inc(10, -5, 0)
+        >>> 5
+        cross_inc(-10, -5, 0)
+        >>> -5
+        cross_inc(-3, -5, 0)
+        >>> 0
 
-def draw_polygon(screen: pygame.Surface, color: Tuple, polygon: Polygon) -> None:
-    pygame.draw.polygon(screen, color, list(polygon.exterior.coords))
-
-
-def intersect_list(polygon: Polygon, polygon_list: List) -> bool:
-    for other_polygon in polygon_list:
-        if polygon.intersects(other_polygon):
-            return True
-    return False
-
-
-def in_relation(center: List, coordinates: List) -> List:
-    return [[center[0] + coord[0], center[1] + coord[1]] for coord in coordinates]
-
-
-def in_relation_poly(poly: Polygon, center: Tuple):
-    return affinity.translate(copy.deepcopy(poly), center[0], center[1])
-
-
-def in_relation_point(center: List, coordinates: List) -> List:
-    return [center[0] + coordinates[0], center[1] + coordinates[1]]
-
-
-def auto_transform(poly: Polygon, direction: bool, center: Tuple) -> Polygon:
-    if not direction:
-        reflected = affinity.affine_transform(copy.deepcopy(poly), [-1, 0, 0, 1, 0, 0])
-        return in_relation_poly(reflected, center)
-    else:
-        return in_relation_poly(poly, center)
-
-
-def hitbox_rotate(center: List, hitbox: Polygon, direction: bool, angle: float) -> Polygon:
-    if not direction:
-        angle *= -1
-    return affinity.rotate(hitbox, angle, tuple(center))
-
-
-def cross_inc(value: float, increment: float, cross: float) -> float:
+        These are strange examples, but it shows how a special way this
+        method can be used.
+        cross_inc(3, -5, 6)
+        >>> 6
+        cross_inc(-3, -5, -6)
+        >>> -6
+        cross_inc(3, 5, 6)
+        >>> -2
+    """
     if value > cross:
         value += increment
         if value < cross:
@@ -76,63 +63,48 @@ def cross_inc(value: float, increment: float, cross: float) -> float:
     return value
 
 
-def dir_value(value: float, direction: bool) -> float:
-    if direction:
-        return value
-    return -value
+def angle(pos: Tuple) -> float:
+    """
+    Returns the angle between pos and the x-axis.
+    """
+    return math.atan2(pos[1], pos[0])
 
 
-def connect_hitbox(center1: List, center2: List, radius: float) -> Polygon:
-    if center1 != center2:
-        line = LineString([tuple(center1), tuple(center2)])
-        length = line.length
-        delx= abs(center2[0] - center1[0])
-        dely = abs(center2[1] - center1[1])
-        if center2[0] > center1[0] and center1[1] < center2[1]:
-            coords1 = list(affinity.translate(line, radius * dely / length, -radius * delx / length).coords)
-            coords2 = list(affinity.translate(line, -radius * dely / length, radius * delx / length).coords)
-        elif center2[0] > center1[0] and center1[1] > center2[1]:
-            coords1 = list(affinity.translate(line, radius * dely / length, radius * delx / length).coords)
-            coords2 = list(affinity.translate(line, - radius * dely / length, -radius * delx / length).coords)
-        elif center2[0] < center1[0] and center1[1] < center2[1]:
-            coords1 = list(affinity.translate(line, radius * dely / length, radius * delx / length).coords)
-            coords2 = list(affinity.translate(line, - radius * dely / length, -radius * delx / length).coords)
+def reflect_angle(angle_: float, axis: str) -> float:
+    """
+    Reflects the angle about an axis.
 
-        elif center2[0] < center1[0] and center1[1] > center2[1]:
-            coords1 = list(affinity.translate(line, radius * dely / length, -radius * delx / length).coords)
-            coords2 = list(affinity.translate(line, -radius * dely / length, radius * delx / length).coords)
+    As an aside, there are really interesting symmetries about these
+    transformations that I discovered while finding the optimal way to compute
+    this.
+    """
+    deg_angle = math.degrees(angle_)
+
+    if axis == 'y':
+        if 0 <= deg_angle <= 180:
+            return math.radians(-deg_angle % 180)
         else:
-            coords1 = list(affinity.translate(line, radius * dely / length, radius * delx / length).coords)
-            coords2 = list(affinity.translate(line, -radius * dely / length, -radius * delx / length).coords)
-        circle1 = Point(tuple(center1)).buffer(radius)
-        circle2 = Point(tuple(center2)).buffer(radius)
-        connecter = Polygon([coords1[0], coords1[1], coords2[1], coords2[0]])
-        return cascaded_union([circle1, circle2, connecter])
-    return Point(tuple(center1)).buffer(radius)
+            return math.radians(180 + (-deg_angle % 360))
 
-
-def connecter_hitbox(center1: List, center2: List, radius: float) -> List:
-    if center1 != center2:
-        line = LineString([tuple(center1), tuple(center2)])
-        length = line.length
-        delx= abs(center2[0] - center1[0])
-        dely = abs(center2[1] - center1[1])
-        if center2[0] > center1[0] and center1[1] < center2[1]:
-            coords1 = list(affinity.translate(line, radius * dely / length, -radius * delx / length).coords)
-            coords2 = list(affinity.translate(line, -radius * dely / length, radius * delx / length).coords)
-        elif center2[0] > center1[0] and center1[1] > center2[1]:
-            coords1 = list(affinity.translate(line, radius * dely / length, radius * delx / length).coords)
-            coords2 = list(affinity.translate(line,- radius * dely / length, -radius * delx / length).coords)
-        elif center2[0] < center1[0] and center1[1] < center2[1]:
-            coords1 = list(affinity.translate(line, radius * dely / length, radius * delx / length).coords)
-            coords2 = list(affinity.translate(line, - radius * dely / length, -radius * delx / length).coords)
-
-        elif center2[0] < center1[0] and center1[1] > center2[1]:
-            coords1 = list(affinity.translate(line, radius * dely / length, -radius * delx / length).coords)
-            coords2 = list(affinity.translate(line, -radius * dely / length, radius * delx / length).coords)
+    if axis == 'x':
+        if 0 <= deg_angle <= 180:
+            return math.radians(-deg_angle % 360)
         else:
-            coords1 = list(affinity.translate(line, radius * dely / length, radius * delx / length).coords)
-            coords2 = list(affinity.translate(line, -radius * dely / length, -radius * delx / length).coords)
-        connecter = Polygon([coords1[0], coords1[1], coords2[1], coords2[0]])
-        return list(connecter.exterior.coords)
-    return []
+            return math.radians(-deg_angle % 180)
+
+
+def std_angle(angle_: float) -> float:
+    """
+    angle_ is in radians.
+    """
+    return math.radians(math.degrees(angle_) % 360)
+
+
+def delta_angle(angle_a: float, angle_b: float) -> float:
+    """
+    Gets the difference between two angles. Input is in radians, output is in
+    radians.
+    """
+    return math.radians(min(std_angle(angle_a - angle_b),
+                            std_angle(angle_b - angle_a)))
+
