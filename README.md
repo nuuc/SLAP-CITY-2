@@ -7,6 +7,9 @@
 
 ## Changelog
 
+## January 29, 2019
+  I got lazy with finishing up the animator over the winter break, and I lost all momentum from doing that, so I've made more or less zero changes since the last time... On the other hand, while I was messing around with trying to mod Getting Over It, specifically understanding how the code structure works in Unity, I realized that I should just use a game engine to make this game so much easier. It was really dumb to try to create my own engine and handle all of the responsibilities that come with it. So, from now on, the updates will be in Unity, and as a promise to myself, I will at least try to make progress by spending at least an hour a week on the game, whether it be testing new mechanics out in Unity, or actually developing the game. I've created a Unity branch instead of just deleting/resetting this repository because I feel sentimental to all the code I've written, despite the oldest code being literal trash. For the time being, I'm messing around with understanding how Unity works so I can exactly implement my vision of Super Slam Brothers Jam in the future.
+
 ## December 06, 2019
   I forgot to update this for a while, but I have been working on updates. There's quite a lot of updates this time and I don't remember what was actually changed since last time, so I'll go over what I've been working on. I've mostly dedicated my work to the animator these days because that's necessary for pretty much everything in the game. Since I want to NOT spaghetti code it this time, it has taken quite a while to write, but I'd say it's about 60-70% complete, in terms of just functionality. Apart from that, I've worked a bit on character and environment, patching things up here and there. Additionally, I've since fixed the geometries file so that the SAT and MTV work correctly now, and I've even tested it a little bit using the geometries_debug file. So far, it seems to be fine, and even tunnelling should be accounted for with max speeds, but there is still a subcase of tunneling where an ECB can tunnel through the corner of a polygon. I'm aware that this can happen, but I'm too lazy to fix it, since at the end of the day, it causes very little issues and is a very isolated edge case. Anyways, I hope to finish animator and maybe even the data manager (previously named pklTreeView) by the end of this year. Progress is steady and what I expected it to be, but since I started late, we're still slightly behind.
 
@@ -84,6 +87,19 @@
 
 
 ## Task list
+
+### January 29, 2020
+- [ ] Understand Unity mechanics better
+  - [ ] Figure out components, their methods, properties, etc.
+  - [ ] Learn tips and tricks to improve workflow
+- [ ] Create an environmental handler
+  - [ ] Make ECB scripts
+  - [ ] Make ground/edge collision scripts
+
+
+## Task list (Old)
+
+I'm going to archive this within the README for sentimental purposes.
 
 ### Short term
 
